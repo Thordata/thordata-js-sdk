@@ -7,10 +7,10 @@ import {
   UniversalOptions,
   ScraperTaskOptions,
   WaitForTaskOptions,
+  ProxyConfig,
 } from "./models";
 import {
   ThordataError,
-  ThordataNetworkError,
   ThordataTimeoutError,
 } from "./errors";
 import {
@@ -19,6 +19,7 @@ import {
   handleAxiosError,
   toFormBody,
   raiseForCode,
+  safeParseJson,
 } from "./utils";
 
 export interface ThordataClientConfig {
@@ -38,8 +39,10 @@ export class ThordataClient {
   private serpUrl = "https://scraperapi.thordata.com/request";
   private universalUrl = "https://universalapi.thordata.com/request";
   private scraperBuilderUrl = "https://scraperapi.thordata.com/builder";
-  private scraperStatusUrl = "https://api.thordata.com/api/web-scraper-api/tasks-status";
-  private scraperDownloadUrl = "https://api.thordata.com/api/web-scraper-api/tasks-download";
+  private scraperStatusUrl =
+    "https://api.thordata.com/api/web-scraper-api/tasks-status";
+  private scraperDownloadUrl =
+    "https://api.thordata.com/api/web-scraper-api/tasks-download";
 
   constructor(config: ThordataClientConfig) {
     if (!config.scraperToken) {
@@ -129,11 +132,9 @@ export class ThordataClient {
     const headers = buildAuthHeaders(this.scraperToken);
 
     try {
-      const res = await this.http.post(
-        this.serpUrl,
-        toFormBody(payload),
-        { headers }
-      );
+      const res = await this.http.post(this.serpUrl, toFormBody(payload), {
+        headers,
+      });
 
       if (outputFormat.toLowerCase() === "html") {
         // 返回 HTML，统一放在 { html: string } 中
@@ -150,7 +151,9 @@ export class ThordataClient {
       if (data && typeof data === "object" && "code" in data && data.code !== 200) {
         raiseForCode("SERP API error", data, res.status);
       }
-      return data;
+      
+      // 使用 safeParseJson 确保返回对象
+      return safeParseJson(data);
     } catch (e) {
       handleAxiosError(e);
     }
@@ -223,9 +226,9 @@ export class ThordataClient {
         raiseForCode("Universal API error", data, res.status);
       }
 
-      // 若有 html 字段则返回 html，否则将整个 data 序列化为字符串
-      if (data && typeof data === "object" && "html" in data) {
-        return (data as any).html as string;
+      // 这里如果是 JSON 模式，也 parse 一下
+      if (outputFormat.toLowerCase() === "json") {
+        return safeParseJson(data);
       }
 
       return typeof data === "string" ? data : JSON.stringify(data);
@@ -318,12 +321,14 @@ export class ThordataClient {
       }
       return TaskStatus.UNKNOWN;
     } catch (e) {
-      // 与 Python 不同，这里我们选择抛出错误而不是静默返回 "error"
       handleAxiosError(e);
     }
   }
 
-  async getTaskResult(taskId: string, fileType: "json" | "csv" | "xlsx" = "json"): Promise<string> {
+  async getTaskResult(
+    taskId: string,
+    fileType: "json" | "csv" | "xlsx" = "json"
+  ): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
     const payload = { tasks_id: taskId, type: fileType };
@@ -381,5 +386,43 @@ export class ThordataClient {
     throw new ThordataTimeoutError(
       `Task ${taskId} did not complete within ${maxWaitMs} ms`
     );
+  }
+
+  // --------------------------
+  // 4) Proxy Network - Generic HTTP GET via Thordata proxy
+  // --------------------------
+
+  /**
+   * Perform a GET request to any URL via Thordata's proxy network.
+   *
+   * Usage:
+   *   const proxy = new ProxyConfig({
+   *     baseUsername: process.env.THORDATA_PROXY_USERNAME!,
+   *     password: process.env.THORDATA_PROXY_PASSWORD!,
+   *     host: "t.pr.thordata.net",
+   *     port: 9999,
+   *     country: "us",
+   *   });
+   *
+   *   const data = await client.requestViaProxy("https://ipinfo.thordata.com", proxy);
+   */
+  async requestViaProxy(
+    url: string,
+    proxyConfig: ProxyConfig,
+    axiosConfig: Record<string, any> = {}
+  ): Promise<any> {
+    if (!url) {
+      throw new ThordataError("url is required for requestViaProxy");
+    }
+
+    try {
+      const res = await this.http.get(url, {
+        ...axiosConfig,
+        proxy: proxyConfig.toAxiosProxyConfig(),
+      });
+      return res.data;
+    } catch (e) {
+      handleAxiosError(e);
+    }
   }
 }

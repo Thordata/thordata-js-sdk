@@ -19,7 +19,11 @@ async function main() {
     num: 5,
   });
 
-  const organic = results?.organic_results ?? results?.organic ?? [];
+  // 调试用：看真实返回结构
+  console.dir(results, { depth: 4 });
+
+  // 优先找 'organic'，其次才是 'organic_results'
+  const organic = results?.organic ?? results?.organic_results ?? [];
   console.log(`Found ${organic.length} organic results`);
   for (const item of organic.slice(0, 3)) {
     console.log("-", item.title, "->", item.link);

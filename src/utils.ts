@@ -129,3 +129,23 @@ export function handleAxiosError(e: any): never {
     e
   );
 }
+
+/**
+ * 安全解析 JSON 响应
+ * 有些 API 可能返回 stringified JSON，甚至带有多余的引号/反引号
+ */
+export function safeParseJson(data: any): any {
+  if (typeof data === "object" && data !== null) {
+    return data;
+  }
+  if (typeof data === "string") {
+    try {
+      // 尝试清理首尾可能的异常字符（如反引号）
+      const cleanData = data.trim().replace(/^`|`$/g, "");
+      return JSON.parse(cleanData);
+    } catch {
+      return data;
+    }
+  }
+  return data;
+}
