@@ -9,10 +9,7 @@ import {
   WaitForTaskOptions,
   ProxyConfig,
 } from "./models";
-import {
-  ThordataError,
-  ThordataTimeoutError,
-} from "./errors";
+import { ThordataError, ThordataTimeoutError } from "./errors";
 import {
   buildAuthHeaders,
   buildPublicHeaders,
@@ -20,6 +17,7 @@ import {
   toFormBody,
   raiseForCode,
   safeParseJson,
+  withRetry,
 } from "./utils";
 
 export interface ThordataClientConfig {
@@ -27,6 +25,7 @@ export interface ThordataClientConfig {
   publicToken?: string;
   publicKey?: string;
   timeoutMs?: number;
+  maxRetries?: number; // Maximum number of retries
 }
 
 export class ThordataClient {
@@ -34,6 +33,7 @@ export class ThordataClient {
   private publicToken?: string;
   private publicKey?: string;
   private timeoutMs: number;
+  private maxRetries: number;
   private http: AxiosInstance;
 
   private serpUrl = "https://scraperapi.thordata.com/request";
@@ -52,10 +52,24 @@ export class ThordataClient {
     this.publicToken = config.publicToken;
     this.publicKey = config.publicKey;
     this.timeoutMs = config.timeoutMs ?? 30000;
+    this.maxRetries = config.maxRetries ?? 0; // Default: no retry
 
     this.http = axios.create({
       timeout: this.timeoutMs,
     });
+  }
+
+  /**
+   * Internal helper to execute request with retry logic
+   */
+  private async execute<T>(requestFn: () => Promise<T>): Promise<T> {
+    return withRetry(async () => {
+      try {
+        return await requestFn();
+      } catch (e) {
+        handleAxiosError(e);
+      }
+    }, this.maxRetries);
   }
 
   // --------------------------
@@ -89,7 +103,6 @@ export class ThordataClient {
       json: outputFormat.toLowerCase() === "html" ? "0" : "1",
     };
 
-    // query param: text for yandex, q for others
     if (engineStr === "yandex") {
       payload.text = query;
     } else {
@@ -98,11 +111,9 @@ export class ThordataClient {
 
     if (num !== undefined) payload.num = String(num);
     if (start !== undefined) payload.start = String(start);
-
     if (country) payload.gl = country.toLowerCase();
     if (language) payload.hl = language.toLowerCase();
 
-    // search type -> tbm mapping
     if (searchType) {
       const st = searchType.toLowerCase();
       const tbmMap: Record<string, string> = {
@@ -111,52 +122,40 @@ export class ThordataClient {
         news: "nws",
         videos: "vid",
       };
-      payload.tbm = tbmMap[st] ?? st; // 未知值原样透传
+      payload.tbm = tbmMap[st] ?? st;
     }
 
-    if (device) {
-      payload.device = device.toLowerCase();
-    }
+    if (device) payload.device = device.toLowerCase();
+    if (renderJs !== undefined) payload.render_js = renderJs ? "True" : "False";
+    if (noCache !== undefined) payload.no_cache = noCache ? "True" : "False";
 
-    if (renderJs !== undefined) {
-      payload.render_js = renderJs ? "True" : "False";
-    }
-
-    if (noCache !== undefined) {
-      payload.no_cache = noCache ? "True" : "False";
-    }
-
-    // 其他字段 (topic_token / shoprs / cc / mkt / ... )
     Object.assign(payload, extra);
 
     const headers = buildAuthHeaders(this.scraperToken);
 
-    try {
+    return this.execute(async () => {
       const res = await this.http.post(this.serpUrl, toFormBody(payload), {
         headers,
       });
 
       if (outputFormat.toLowerCase() === "html") {
-        // 返回 HTML，统一放在 { html: string } 中
-        if (typeof res.data === "string") {
-          return { html: res.data };
-        }
-        if (res.data && typeof res.data === "object" && "html" in res.data) {
+        if (typeof res.data === "string") return { html: res.data };
+        if (res.data && typeof res.data === "object" && "html" in res.data)
           return res.data;
-        }
         return { html: String(res.data) };
       }
 
-      const data = res.data;
-      if (data && typeof data === "object" && "code" in data && data.code !== 200) {
+      const data = safeParseJson(res.data);
+      if (
+        data &&
+        typeof data === "object" &&
+        "code" in data &&
+        data.code !== 200
+      ) {
         raiseForCode("SERP API error", data, res.status);
       }
-      
-      // 使用 safeParseJson 确保返回对象
-      return safeParseJson(data);
-    } catch (e) {
-      handleAxiosError(e);
-    }
+      return data;
+    });
   }
 
   // --------------------------
@@ -193,48 +192,47 @@ export class ThordataClient {
     if (cleanContent) payload.clean_content = cleanContent;
     if (wait !== undefined) payload.wait = String(wait);
     if (waitFor) payload.wait_for = waitFor;
-    if (customHeaders && customHeaders.length > 0) {
+    if (customHeaders && customHeaders.length > 0)
       payload.headers = JSON.stringify(customHeaders);
-    }
-    if (cookies && cookies.length > 0) {
+    if (cookies && cookies.length > 0)
       payload.cookies = JSON.stringify(cookies);
-    }
 
     Object.assign(payload, extra);
 
     const headers = buildAuthHeaders(this.scraperToken);
 
-    try {
-      const res = await this.http.post(
-        this.universalUrl,
-        toFormBody(payload),
-        {
-          headers,
-          responseType:
-            outputFormat.toLowerCase() === "png" ? "arraybuffer" : "json",
-        }
-      );
+    return this.execute(async () => {
+      const res = await this.http.post(this.universalUrl, toFormBody(payload), {
+        headers,
+        responseType:
+          outputFormat.toLowerCase() === "png" ? "arraybuffer" : "json",
+      });
 
       if (outputFormat.toLowerCase() === "png") {
-        // 直接返回 Buffer
         return Buffer.from(res.data);
       }
 
-      const data = res.data;
+      const data = safeParseJson(res.data);
 
-      if (data && typeof data === "object" && "code" in data && data.code !== 200) {
+      if (
+        data &&
+        typeof data === "object" &&
+        "code" in data &&
+        data.code !== 200
+      ) {
         raiseForCode("Universal API error", data, res.status);
       }
 
-      // 这里如果是 JSON 模式，也 parse 一下
       if (outputFormat.toLowerCase() === "json") {
-        return safeParseJson(data);
+        return data;
+      }
+
+      if (data && typeof data === "object" && "html" in data) {
+        return (data as any).html as string;
       }
 
       return typeof data === "string" ? data : JSON.stringify(data);
-    } catch (e) {
-      handleAxiosError(e);
-    }
+    });
   }
 
   // --------------------------
@@ -265,14 +263,14 @@ export class ThordataClient {
 
     const headers = buildAuthHeaders(this.scraperToken);
 
-    try {
+    return this.execute(async () => {
       const res = await this.http.post(
         this.scraperBuilderUrl,
         toFormBody(payload),
         { headers }
       );
 
-      const data = res.data;
+      const data = safeParseJson(res.data);
       if (!data || typeof data !== "object") {
         throw new ThordataError("Invalid response from Scraper Builder API");
       }
@@ -286,9 +284,7 @@ export class ThordataClient {
         throw new ThordataError("Task ID missing in response");
       }
       return String(taskId);
-    } catch (e) {
-      handleAxiosError(e);
-    }
+    });
   }
 
   private requirePublicCreds(): void {
@@ -304,14 +300,14 @@ export class ThordataClient {
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
     const payload = { tasks_ids: taskId };
 
-    try {
+    return this.execute(async () => {
       const res = await this.http.post(
         this.scraperStatusUrl,
         toFormBody(payload),
         { headers }
       );
 
-      const data = res.data;
+      const data = safeParseJson(res.data);
       if (data?.code === 200 && Array.isArray(data.data)) {
         for (const item of data.data) {
           if (String(item.task_id) === String(taskId)) {
@@ -320,9 +316,7 @@ export class ThordataClient {
         }
       }
       return TaskStatus.UNKNOWN;
-    } catch (e) {
-      handleAxiosError(e);
-    }
+    });
   }
 
   async getTaskResult(
@@ -333,22 +327,21 @@ export class ThordataClient {
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
     const payload = { tasks_id: taskId, type: fileType };
 
-    try {
+    return this.execute(async () => {
       const res = await this.http.post(
         this.scraperDownloadUrl,
         toFormBody(payload),
         { headers }
       );
 
-      const data = res.data;
+      const data = safeParseJson(res.data);
       if (data?.code === 200 && data?.data?.download) {
         return data.data.download as string;
       }
 
       raiseForCode("Get task result failed", data, res.status);
-    } catch (e) {
-      handleAxiosError(e);
-    }
+      return ""; // unreachable
+    });
   }
 
   async waitForTask(
@@ -356,10 +349,9 @@ export class ThordataClient {
     options: WaitForTaskOptions = {}
   ): Promise<string> {
     const pollIntervalMs = options.pollIntervalMs ?? 5000;
-    const maxWaitMs = options.maxWaitMs ?? 10 * 60 * 1000; // 默认 10 分钟
+    const maxWaitMs = options.maxWaitMs ?? 10 * 60 * 1000;
     const start = Date.now();
 
-    // 简单轮询
     while (Date.now() - start < maxWaitMs) {
       const status = await this.getTaskStatus(taskId);
       const lower = status.toLowerCase();
@@ -389,23 +381,9 @@ export class ThordataClient {
   }
 
   // --------------------------
-  // 4) Proxy Network - Generic HTTP GET via Thordata proxy
+  // 4) Proxy Network
   // --------------------------
 
-  /**
-   * Perform a GET request to any URL via Thordata's proxy network.
-   *
-   * Usage:
-   *   const proxy = new ProxyConfig({
-   *     baseUsername: process.env.THORDATA_PROXY_USERNAME!,
-   *     password: process.env.THORDATA_PROXY_PASSWORD!,
-   *     host: "t.pr.thordata.net",
-   *     port: 9999,
-   *     country: "us",
-   *   });
-   *
-   *   const data = await client.requestViaProxy("https://ipinfo.thordata.com", proxy);
-   */
   async requestViaProxy(
     url: string,
     proxyConfig: ProxyConfig,
@@ -415,14 +393,12 @@ export class ThordataClient {
       throw new ThordataError("url is required for requestViaProxy");
     }
 
-    try {
+    return this.execute(async () => {
       const res = await this.http.get(url, {
         ...axiosConfig,
         proxy: proxyConfig.toAxiosProxyConfig(),
       });
       return res.data;
-    } catch (e) {
-      handleAxiosError(e);
-    }
+    });
   }
 }

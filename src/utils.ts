@@ -2,6 +2,7 @@
 
 import { AxiosError } from "axios";
 import {
+  ThordataError,
   ThordataAPIError,
   ThordataAuthError,
   ThordataNetworkError,
@@ -10,7 +11,7 @@ import {
 } from "./errors";
 
 /**
- * 构造 SERP/Universal API 的认证头
+ * Build authorization headers for SERP/Universal API.
  */
 export function buildAuthHeaders(scraperToken: string): Record<string, string> {
   return {
@@ -20,7 +21,7 @@ export function buildAuthHeaders(scraperToken: string): Record<string, string> {
 }
 
 /**
- * 构造 Web Scraper 公共 API 的认证头
+ * Build authorization headers for Web Scraper Public API.
  */
 export function buildPublicHeaders(
   publicToken: string,
@@ -34,7 +35,7 @@ export function buildPublicHeaders(
 }
 
 /**
- * 将任意对象转换为 x-www-form-urlencoded 字符串
+ * Convert any object to x-www-form-urlencoded string.
  */
 export function toFormBody(payload: Record<string, any>): string {
   const params = new URLSearchParams();
@@ -46,7 +47,26 @@ export function toFormBody(payload: Record<string, any>): string {
 }
 
 /**
- * 从 SERP/Universal JSON 响应中提取 code/msg 并抛出对应错误
+ * Safely parse JSON response.
+ * Handles cases where API returns double-encoded JSON or strings with artifacts.
+ */
+export function safeParseJson(data: any): any {
+  if (typeof data === "object" && data !== null) {
+    return data;
+  }
+  if (typeof data === "string") {
+    try {
+      const cleanData = data.trim().replace(/^`|`$/g, "");
+      return JSON.parse(cleanData);
+    } catch {
+      return data;
+    }
+  }
+  return data;
+}
+
+/**
+ * Extract code/msg from SERP/Universal JSON response and throw corresponding error.
  */
 export function raiseForCode(
   message: string,
@@ -55,17 +75,16 @@ export function raiseForCode(
 ): never {
   const code = typeof payload?.code === "number" ? payload.code : undefined;
   const errMsg = payload?.msg || payload?.message || message;
-  const requestId = payload?.request_id;
 
-  // 401 / 403 -> Auth
   if (code === 401 || code === 403) {
     throw new ThordataAuthError(errMsg, statusCode ?? code, code, payload);
   }
 
-  // 402 / 429 -> Rate limit / quota
   if (code === 402 || code === 429) {
     const retryAfter =
-      typeof payload?.retry_after === "number" ? payload.retry_after : undefined;
+      typeof payload?.retry_after === "number"
+        ? payload.retry_after
+        : undefined;
     throw new ThordataRateLimitError(
       errMsg,
       statusCode ?? code,
@@ -75,55 +94,52 @@ export function raiseForCode(
     );
   }
 
-  // 5xx -> server error
   if (code && code >= 500 && code < 600) {
     throw new ThordataAPIError(errMsg, statusCode ?? code, code, payload);
   }
 
-  // 300 / 400 等 -> 统一 APIError
   throw new ThordataAPIError(errMsg, statusCode, code, payload);
 }
 
 /**
- * 统一处理 axios 错误
+ * Uniformly handle axios errors.
  */
 export function handleAxiosError(e: any): never {
+  // Fix: 如果已经是 ThordataError，直接抛出
+  if (e instanceof ThordataError) {
+    throw e;
+  }
   if (e instanceof AxiosError) {
     if (e.code === "ECONNABORTED") {
-      throw new ThordataTimeoutError(
-        `Request timed out: ${e.message}`,
-        e
-      );
+      throw new ThordataTimeoutError(`Request timed out: ${e.message}`, e);
     }
     if (!e.response) {
-      throw new ThordataNetworkError(
-        `Network error: ${e.message}`,
-        e
-      );
+      throw new ThordataNetworkError(`Network error: ${e.message}`, e);
     }
+
 
     const status = e.response.status;
     const data = e.response.data;
 
-    // 如果响应里有 code 字段，使用 raiseForCode
-    if (data && typeof data === "object" && "code" in data) {
-      raiseForCode(
-        `API error: HTTP ${status}`,
-        data,
-        status
-      );
+    // Try to parse potential JSON string in data
+    const parsedData = safeParseJson(data);
+
+    if (
+      parsedData &&
+      typeof parsedData === "object" &&
+      "code" in parsedData
+    ) {
+      raiseForCode(`API error: HTTP ${status}`, parsedData, status);
     }
 
-    // 否则抛 APIError
     throw new ThordataAPIError(
       `HTTP error: ${status} ${e.response.statusText}`,
       status,
       undefined,
-      data
+      parsedData
     );
   }
 
-  // 非 axios 错误
   throw new ThordataNetworkError(
     `Unknown error: ${(e as any)?.message || String(e)}`,
     e
@@ -131,21 +147,39 @@ export function handleAxiosError(e: any): never {
 }
 
 /**
- * 安全解析 JSON 响应
- * 有些 API 可能返回 stringified JSON，甚至带有多余的引号/反引号
+ * Generic retry function with exponential backoff.
  */
-export function safeParseJson(data: any): any {
-  if (typeof data === "object" && data !== null) {
-    return data;
-  }
-  if (typeof data === "string") {
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 0
+): Promise<T> {
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      // 尝试清理首尾可能的异常字符（如反引号）
-      const cleanData = data.trim().replace(/^`|`$/g, "");
-      return JSON.parse(cleanData);
-    } catch {
-      return data;
+      return await fn();
+    } catch (e: any) {
+      lastError = e;
+
+      // Decide whether to retry
+      const shouldRetry =
+        e.code === 429 ||
+        (e.statusCode && e.statusCode >= 500) || // 5xx
+        e.name === "ThordataTimeoutError" ||
+        e.name === "ThordataNetworkError";
+
+      if (!shouldRetry || attempt === maxRetries) {
+        throw e;
+      }
+
+      // Calculate delay (exponential backoff)
+      const delay = 1000 * Math.pow(2, attempt) + Math.random() * 100;
+      
+      // Respect retryAfter if available
+      const waitTime = Math.max(delay, (e.retryAfter || 0) * 1000);
+
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
   }
-  return data;
+  throw lastError;
 }

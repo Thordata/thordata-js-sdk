@@ -230,43 +230,44 @@ async function runTask() {
 }
 ```
 
-## 🔧 Error Handling
+## 🔧 Error Handling & Response Codes
 
-JS SDK error types reference Python version:
+### API Response Codes
 
-- `ThordataError` (base class)
-- `ThordataAPIError` (non-200 business code or exceptional payload)
-- `ThordataAuthError` (401/403)
-- `ThordataRateLimitError` (402/429)
-- `ThordataNetworkError` (network errors)
-- `ThordataTimeoutError` (request timeout)
+The SDK will automatically throw the corresponding exception based on the code field returned by the API. Common status codes are as follows:
 
-### Example:
+| Code | Status | Exception | Description |
+|------|--------|-----------|-------------|
+| 200 | Success | - | Request successful, data retrieved. |
+| 300 | Not collected | `ThordataAPIError` | Failed to parse/process response (no valid data). |
+| 400 | Bad Request | `ThordataAPIError` | Invalid parameters. |
+| 401 | Unauthorized | `ThordataAuthError` | Check your scraper token. |
+| 403 | Forbidden | `ThordataAuthError` | Access denied. |
+| 404 | Not Found | `ThordataAPIError` | Resource does not exist. |
+| 429 | Too Many Requests | `ThordataRateLimitError` | Rate limit exceeded. Check `e.retryAfter`. |
+| 500 | Internal Server Error | `ThordataAPIError` | Server-side error. |
+| 504 | Timeout | `ThordataTimeoutError` | Gateway timed out waiting for upstream. |
 
-```typescript
+### Handling Errors
+
+```ts
 import {
   ThordataAuthError,
   ThordataRateLimitError,
-  ThordataNetworkError,
   ThordataTimeoutError,
-  ThordataError,
 } from "thordata-js-sdk";
 
 try {
-  const results = await client.serpSearch({ query: "test", engine: Engine.GOOGLE });
+  const result = await client.serpSearch({ query: "test" });
 } catch (e) {
   if (e instanceof ThordataAuthError) {
-    console.error("Auth error:", e.message);
+    console.error("Please check your API token");
   } else if (e instanceof ThordataRateLimitError) {
-    console.error("Rate limit:", e.message, "retryAfter:", e.retryAfter);
+    console.error(`Rate limited! Retry after ${e.retryAfter} seconds`);
   } else if (e instanceof ThordataTimeoutError) {
-    console.error("Timeout:", e.message);
-  } else if (e instanceof ThordataNetworkError) {
-    console.error("Network error:", e.message);
-  } else if (e instanceof ThordataError) {
-    console.error("Thordata SDK error:", e.message);
+    console.error("Request timed out, consider retrying");
   } else {
-    console.error("Unknown error:", e);
+    console.error("Other error:", e);
   }
 }
 ```

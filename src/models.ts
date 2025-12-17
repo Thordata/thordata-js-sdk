@@ -8,7 +8,16 @@ import { Engine } from "./enums";
  */
 export interface SerpOptions {
   query: string;
-  engine?: Engine | "google" | "bing" | "yandex" | "duckduckgo";
+  engine?: Engine 
+    | "google" 
+    | "google_news" 
+    | "google_shopping" 
+    | "google_images" 
+    | "google_videos"
+    | "bing" 
+    | "bing_news"
+    | "yandex" 
+    | "duckduckgo";
   num?: number;
   start?: number;
   country?: string;          // gl
