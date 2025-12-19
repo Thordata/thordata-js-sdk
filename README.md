@@ -1,143 +1,151 @@
 # Thordata JS SDK (Node.js / TypeScript)
 
-Official JavaScript/TypeScript SDK for [Thordata](https://www.thordata.com).
+Official JavaScript/TypeScript SDK for <!--citation:1-->.
 
-Supports:
+This SDK supports:
 
-- **SERP API** (Google / Bing / Yandex / DuckDuckGo)
+- **SERP API** (Google / Bing / Yandex / DuckDuckGo / Baidu)
 - **Web Unlocker / Universal API**
 - **Web Scraper API** (task-based scraping)
 
-> Status: early preview. APIs may evolve as the Python SDK and docs iterate.
+It is designed to be:
+
+- **TypeScript-first**
+- **ESM-ready**
+- **Offline-test friendly** (base URLs can be overridden to run examples/tests against a mock server)
 
 ---
 
 ## 📦 Installation
 
-The current version is primarily for development and internal integration, not yet published to npm. You can use it through the following methods:
-
-### 1. Local Development (Recommended)
-
-```bash
-git clone https://github.com/Thordata/thordata-js-sdk.git
-cd thordata-js-sdk
-
-npm install
-npm run build
-```
-
-Reference via relative path in your project (e.g., monorepo scenario):
-
-```typescript
-import { ThordataClient, Engine } from "../thordata-js-sdk/dist";
-```
-
-### 2. Future npm Release (Planned)
-
 ```bash
 npm install thordata-js-sdk
 ```
 
-```typescript
-import { ThordataClient, Engine } from "thordata-js-sdk";
+If you are developing locally:
+
+```bash
+git clone https://github.com/Thordata/thordata-js-sdk.git
+cd thordata-js-sdk
+npm install
+npm run build
 ```
+
+---
 
 ## 🔐 Configuration
 
-The SDK primarily depends on the following environment variables (examples directory uses dotenv):
-
-```env
-# Thordata Scraper Token (required for SERP / Universal / Web Scraper Builder)
-THORDATA_SCRAPER_TOKEN=your_scraper_token_here
-
-# Web Scraper Public API (task status/result download)
-THORDATA_PUBLIC_TOKEN=your_public_token_here
-THORDATA_PUBLIC_KEY=your_public_key_here
-```
-
-For development, you can copy `.env.example` to `.env` and fill in:
+Set environment variables:
 
 ```bash
-cp .env.example .env
-# Then edit .env
+export THORDATA_SCRAPER_TOKEN=your_scraper_token
+export THORDATA_PUBLIC_TOKEN=your_public_token
+export THORDATA_PUBLIC_KEY=your_public_key
 ```
 
-Examples use `import "dotenv/config"` to automatically load `.env`.
+Or create a `.env` file (examples may use dotenv):
+
+```env
+THORDATA_SCRAPER_TOKEN=your_scraper_token
+THORDATA_PUBLIC_TOKEN=your_public_token
+THORDATA_PUBLIC_KEY=your_public_key
+```
+
+---
 
 ## 🚀 Quick Start
 
-### 1. Initialize Client
+### Create a client
 
 ```typescript
-import { ThordataClient } from "thordata-js-sdk"; // or "../src" / "../dist"
+import { ThordataClient } from "thordata-js-sdk";
 
 const client = new ThordataClient({
   scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
-  publicToken: process.env.THORDATA_PUBLIC_TOKEN, // optional
-  publicKey: process.env.THORDATA_PUBLIC_KEY, // optional
+  publicToken: process.env.THORDATA_PUBLIC_TOKEN,
+  publicKey: process.env.THORDATA_PUBLIC_KEY,
 });
 ```
 
-## 🔍 SERP API Example
+---
 
-**Supported:**
+## 🔍 SERP API
 
-- **Google**: Search / Shopping / Local / Videos / News / Product / Flights / Images / Lens / Trends / Hotels / Play / Jobs / Scholar / Maps / Finance / Patents
-- **Bing**: Search / News / Shopping / Maps / Images / Videos
-- **Yandex**: Search
-- **DuckDuckGo**: Search
-
-### Simple Google Search:
+### Basic Google Search
 
 ```typescript
 import { ThordataClient, Engine } from "thordata-js-sdk";
 
-const client = new ThordataClient({
-  scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
+const client = new ThordataClient({ scraperToken: process.env.THORDATA_SCRAPER_TOKEN! });
+
+const data = await client.serpSearch({
+  query: "Thordata proxy network",
+  engine: Engine.GOOGLE,
+  num: 5,
 });
 
-async function main() {
-  const results = await client.serpSearch({
-    query: "Thordata proxy network",
-    engine: Engine.GOOGLE,
-    num: 5,
-  });
+const organic = data?.organic ?? [];
+console.log(`Found ${organic.length} organic results`);
 
-  const organic = results?.organic_results ?? results?.organic ?? [];
-  console.log(`Found ${organic.length} organic results`);
-
-  for (const item of organic.slice(0, 3)) {
-    console.log("-", item.title, "->", item.link);
-  }
+for (const item of organic.slice(0, 3)) {
+  console.log("-", item.title, "->", item.link);
 }
-
-main().catch(console.error);
 ```
 
-For more complex Google News examples, refer to Python SDK documentation:
+### Recommended engines for Google verticals (News / Shopping)
 
-`docs/serp_reference.md` (Python repository)
+Thordata supports both:
 
-In JS SDK, all SERP parameters are passed through fields in `serpSearch({ ... })` or via `...extra`, for example:
+- Dedicated engines (recommended): `google_news`, `google_shopping`
+- Generic Google + tbm via `searchType` (alternative)
+
+#### Google News (recommended):
 
 ```typescript
-await client.serpSearch({
+const data = await client.serpSearch({
   query: "AI regulation",
-  engine: Engine.GOOGLE,
-  searchType: "news",
+  engine: "google_news",
   country: "us",
   language: "en",
-  topic_token: "TOPIC_TOKEN",
-  publication_token: "PUB_TOKEN",
-  section_token: "SECTION_TOKEN",
-  story_token: "STORY_TOKEN",
-  so: 1, // 0=relevance, 1=date
+  num: 10,
+  so: 1, // 0=relevance, 1=date (Google News)
 });
 ```
 
-## 🌐 Web Unlocker / Universal API Example
+#### Google Shopping (recommended):
 
-### Basic HTML Scraping (No JS Rendering):
+```typescript
+const data = await client.serpSearch({
+  query: "iPhone 15",
+  engine: "google_shopping",
+  country: "us",
+  language: "en",
+  num: 10,
+  min_price: 500,
+  max_price: 1500,
+});
+```
+
+#### Alternative: Google generic engine + tbm (via searchType):
+
+```typescript
+const data = await client.serpSearch({
+  query: "iPhone 15",
+  engine: "google",
+  searchType: "shopping", // maps to tbm=shop
+  country: "us",
+  language: "en",
+  num: 10,
+});
+```
+
+Official and up-to-date parameters are documented at: https://doc.thordata.com
+
+---
+
+## 🔓 Web Unlocker / Universal API
+
+### Basic HTML scraping
 
 ```typescript
 const html = await client.universalScrape({
@@ -149,52 +157,36 @@ const html = await client.universalScrape({
 console.log(String(html).slice(0, 300));
 ```
 
-### Enable JS Rendering + Wait for Element Loading:
+### JS rendering + wait for selector
 
 ```typescript
 const html = await client.universalScrape({
   url: "https://example.com/spa",
   jsRender: true,
   outputFormat: "html",
-  waitFor: ".main-content", // Wait for this CSS selector to appear
+  waitFor: ".main-content",
 });
 ```
 
-### Pass Custom Headers / Cookies:
+### Screenshot (PNG)
 
 ```typescript
-const html = await client.universalScrape({
-  url: "https://example.com/account",
-  jsRender: true,
-  outputFormat: "html",
-  headers: [
-    { name: "User-Agent", value: "Mozilla/5.0 (ThordataDemo/1.0)" },
-    { name: "X-Demo-Header", value: "DemoValue" },
-  ],
-  cookies: [{ name: "session", value: "abc123" }],
-});
-```
+import { writeFileSync } from "node:fs";
 
-### PNG Screenshot:
-
-```typescript
 const pngBytes = await client.universalScrape({
   url: "https://example.com",
   jsRender: true,
   outputFormat: "png",
 });
 
-import { writeFileSync } from "fs";
 writeFileSync("screenshot.png", pngBytes as Buffer);
 ```
 
-For more parameter descriptions, see Python SDK documentation:
+---
 
-`docs/universal_reference.md`
+## 🕷️ Web Scraper API (Task-based)
 
-## 🕷️ Web Scraper API Example (Task-based Scraping)
-
-Note: Requires `THORDATA_PUBLIC_TOKEN` and `THORDATA_PUBLIC_KEY`
+Requires `THORDATA_PUBLIC_TOKEN` and `THORDATA_PUBLIC_KEY`.
 
 ```typescript
 const client = new ThordataClient({
@@ -203,107 +195,148 @@ const client = new ThordataClient({
   publicKey: process.env.THORDATA_PUBLIC_KEY,
 });
 
-async function runTask() {
-  const taskId = await client.createScraperTask({
-    fileName: "demo_task",
-    spiderId: "example-spider-id", // Get from Thordata Dashboard
-    spiderName: "example.com",
-    parameters: {
-      url: "https://example.com",
-    },
-  });
+const taskId = await client.createScraperTask({
+  fileName: "demo_task",
+  spiderId: "example-spider-id",
+  spiderName: "example.com",
+  parameters: { url: "https://example.com" },
+});
 
-  console.log("Task created:", taskId);
+console.log("Task created:", taskId);
 
-  const status = await client.waitForTask(taskId, {
-    pollIntervalMs: 5000,
-    maxWaitMs: 60000,
-  });
-  console.log("Final status:", status);
+const status = await client.waitForTask(taskId, {
+  pollIntervalMs: 5000,
+  maxWaitMs: 60000,
+});
 
-  if (status.toLowerCase() === "ready" || status.toLowerCase() === "success") {
-    const downloadUrl = await client.getTaskResult(taskId, "json");
-    console.log("Download URL:", downloadUrl);
-  }
+console.log("Final status:", status);
+
+if (["ready", "success", "finished"].includes(status.toLowerCase())) {
+  const downloadUrl = await client.getTaskResult(taskId, "json");
+  console.log("Download URL:", downloadUrl);
 }
 ```
 
-## 🔧 Error Handling & Response Codes
+---
 
-### API Response Codes
+## 🔧 Errors & Response Codes
 
-The SDK will automatically throw the corresponding exception based on the code field returned by the API. Common status codes are as follows:
+The SDK throws typed errors when the API returns a non-success code (or non-2xx HTTP status).
 
-| Code | Status                | Exception                | Description                                       |
-| ---- | --------------------- | ------------------------ | ------------------------------------------------- |
-| 200  | Success               | -                        | Request successful, data retrieved.               |
-| 300  | Not collected         | `ThordataAPIError`       | Failed to parse/process response (no valid data). |
-| 400  | Bad Request           | `ThordataAPIError`       | Invalid parameters.                               |
-| 401  | Unauthorized          | `ThordataAuthError`      | Check your scraper token.                         |
-| 403  | Forbidden             | `ThordataAuthError`      | Access denied.                                    |
-| 404  | Not Found             | `ThordataAPIError`       | Resource does not exist.                          |
-| 429  | Too Many Requests     | `ThordataRateLimitError` | Rate limit exceeded. Check `e.retryAfter`.        |
-| 500  | Internal Server Error | `ThordataAPIError`       | Server-side error.                                |
-| 504  | Timeout               | `ThordataTimeoutError`   | Gateway timed out waiting for upstream.           |
+| Code    | Typical Meaning       | Error class                                    |
+| ------- | --------------------- | ---------------------------------------------- |
+| 200     | Success               | -                                              |
+| 300     | Not collected         | `ThordataNotCollectedError`                    |
+| 400     | Bad request           | `ThordataValidationError`                      |
+| 401/403 | Auth/Forbidden        | `ThordataAuthError`                            |
+| 402/429 | Quota/Rate limit      | `ThordataRateLimitError`                       |
+| 5xx     | Server/timeout issues | `ThordataServerError` / `ThordataTimeoutError` |
 
-### Handling Errors
+### Example error handling:
 
-```ts
-import { ThordataAuthError, ThordataRateLimitError, ThordataTimeoutError } from "thordata-js-sdk";
+```typescript
+import {
+  ThordataAuthError,
+  ThordataRateLimitError,
+  ThordataTimeoutError,
+  ThordataNotCollectedError,
+} from "thordata-js-sdk";
 
 try {
-  const result = await client.serpSearch({ query: "test" });
+  const data = await client.serpSearch({ query: "test", engine: "google" });
+  console.log(data);
 } catch (e) {
   if (e instanceof ThordataAuthError) {
-    console.error("Please check your API token");
+    console.error("Auth error: check your token.");
   } else if (e instanceof ThordataRateLimitError) {
-    console.error(`Rate limited! Retry after ${e.retryAfter} seconds`);
+    console.error(`Rate limited. Retry after: ${e.retryAfter ?? "N/A"} seconds.`);
+  } else if (e instanceof ThordataNotCollectedError) {
+    console.error("Not collected (code=300). Consider retrying.");
   } else if (e instanceof ThordataTimeoutError) {
-    console.error("Request timed out, consider retrying");
+    console.error("Request timed out.");
   } else {
-    console.error("Other error:", e);
+    console.error("Unexpected error:", e);
   }
 }
 ```
+
+---
+
+## 🌍 Base URL Overrides (for offline tests / custom routing)
+
+You can override API base URLs via environment variables:
+
+```bash
+export THORDATA_SCRAPERAPI_BASE_URL=http://127.0.0.1:12345
+export THORDATA_UNIVERSALAPI_BASE_URL=http://127.0.0.1:12345
+export THORDATA_WEB_SCRAPER_API_BASE_URL=http://127.0.0.1:12345
+export THORDATA_LOCATIONS_BASE_URL=http://127.0.0.1:12345
+```
+
+Or via client config:
+
+```typescript
+const client = new ThordataClient({
+  scraperToken: "dummy",
+  baseUrls: { scraperapiBaseUrl: "http://127.0.0.1:12345" },
+});
+```
+
+---
+
+## 🧪 Development
+
+```bash
+npm install
+npm run build
+npm test
+```
+
+### Run examples (compiled):
+
+```bash
+node dist/examples/basic_serp.js
+node dist/examples/basic_universal.js
+```
+
+---
 
 ## 📁 Project Structure
 
 ```
 thordata-js-sdk/
 ├── src/
-│   ├── index.ts       # Public exports
-│   ├── client.ts      # ThordataClient (SERP / Universal / Scraper)
-│   ├── models.ts      # SerpOptions / UniversalOptions / ScraperTaskOptions
-│   ├── enums.ts       # Engine / TaskStatus
-│   ├── errors.ts      # ThordataError family
-│   └── utils.ts       # Helper functions (headers, form body, error handling)
+│   ├── index.ts
+│   ├── client.ts
+│   ├── models.ts
+│   ├── enums.ts
+│   ├── errors.ts
+│   ├── retry.ts
+│   ├── endpoints.ts
+│   └── utils.ts
 ├── examples/
 │   ├── basic_serp.ts
 │   ├── basic_universal.ts
-│   └── basic_scraper_task.ts
-├── .env.example
+│   ├── basic_scraper_task.ts
+│   └── serp_google_news.ts
+├── tests/
+│   ├── serp.offline.test.ts
+│   ├── mockServer.ts
+│   └── examples.e2e.test.ts
+├── .github/workflows/ci.yml
 ├── package.json
 ├── tsconfig.json
+├── tsconfig.build.json
 └── README.md
 ```
 
-## 🧪 Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Run examples (dev mode, using ts-node + ../src)
-npx ts-node examples/basic_serp.ts
-npx ts-node examples/basic_universal.ts
-```
+---
 
 ## 🔮 Roadmap
 
-- Publish to npm
-- Add unit tests (Jest/Vitest)
-- Add basic CI (GitHub Actions)
-- Keep documentation in sync with Python SDK (SERP / Universal / Web Scraper)
+- Publish stable releases to npm
+- Add async streaming / higher-level helpers for AI agents
+- Expand coverage for more engines/verticals (Flights/Maps/Scholar/Jobs, etc.)
+- Add integration tests (optional scheduled job with real tokens)
+
+---
