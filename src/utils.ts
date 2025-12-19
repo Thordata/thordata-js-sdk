@@ -79,23 +79,28 @@ export function safeParseJson(data: any): any {
  * Extract code/msg from SERP/Universal JSON response and throw corresponding error.
  */
 export function raiseForCode(message: string, payload: any, statusCode?: number): never {
-  const code = typeof payload?.code === "number" ? payload.code : undefined;
+  const apiCode = typeof payload?.code === "number" ? payload.code : undefined;
   const errMsg = payload?.msg || payload?.message || message;
 
-  if (code === 401 || code === 403) {
-    throw new ThordataAuthError(errMsg, statusCode ?? code, code, payload);
+  // IMPORTANT:
+  // - Prefer API JSON `code` over HTTP status.
+  // - Pass constructor args in the order: (message, code, statusCode, payload).
+  const effective = apiCode ?? statusCode;
+
+  if (effective === 401 || effective === 403) {
+    throw new ThordataAuthError(errMsg, apiCode ?? effective, statusCode, payload);
   }
 
-  if (code === 402 || code === 429) {
+  if (effective === 402 || effective === 429) {
     const retryAfter = typeof payload?.retry_after === "number" ? payload.retry_after : undefined;
-    throw new ThordataRateLimitError(errMsg, statusCode ?? code, code, payload, retryAfter);
+    throw new ThordataRateLimitError(errMsg, apiCode ?? effective, statusCode, payload, retryAfter);
   }
 
-  if (code && code >= 500 && code < 600) {
-    throw new ThordataApiError(errMsg, statusCode ?? code, code, payload);
+  if (effective && effective >= 500 && effective < 600) {
+    throw new ThordataApiError(errMsg, apiCode ?? effective, statusCode, payload);
   }
 
-  throw new ThordataApiError(errMsg, statusCode, code, payload);
+  throw new ThordataApiError(errMsg, apiCode ?? effective, statusCode, payload);
 }
 
 /**

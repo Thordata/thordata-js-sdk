@@ -47,7 +47,7 @@ export function raiseForCode(
   opts: { code?: number; status?: number; payload?: any },
 ): never {
   const { code, status, payload } = opts;
-  const effective = status ?? code;
+  const effective = code ?? status;
 
   if (effective === 300) throw new ThordataNotCollectedError(message, code, status, payload);
   if (effective === 401 || effective === 403)
