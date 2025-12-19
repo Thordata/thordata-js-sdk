@@ -1,11 +1,24 @@
 {
+  "type": "module",
   "name": "thordata-js-sdk",
   "version": "0.1.0",
   "description": "Official JavaScript/TypeScript SDK for Thordata (SERP API, Web Unlocker, Web Scraper API).",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "npm run build",
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "format": "prettier -w .",
@@ -48,7 +61,6 @@
     "type": "git",
     "url": "git+https://github.com/Thordata/thordata-js-sdk.git"
   },
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Thordata/thordata-js-sdk/issues"
   },

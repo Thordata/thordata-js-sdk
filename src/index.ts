@@ -1,8 +1,8 @@
 // src/index.ts
 
-export * from "./client";
-export * from "./enums";
-export * from "./errors";
-export * from "./models";
-export * from "./retry";
-export * from "./endpoints";
+export * from "./client.js";
+export * from "./enums.js";
+export * from "./errors.js";
+export * from "./models.js";
+export * from "./retry.js";
+export * from "./endpoints.js";

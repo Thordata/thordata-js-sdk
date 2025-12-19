@@ -1,7 +1,7 @@
 // examples/basic_scraper_task.ts
 
 import "dotenv/config";
-import { ThordataClient } from "../src";
+import { ThordataClient } from "../src/index.js";
 
 async function main() {
   const scraperToken = process.env.THORDATA_SCRAPER_TOKEN;

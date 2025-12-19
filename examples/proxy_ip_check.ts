@@ -1,7 +1,7 @@
 // examples/proxy_ip_check.ts
 
 import "dotenv/config";
-import { ThordataClient, ProxyConfig } from "../src";
+import { ThordataClient, ProxyConfig } from "../src/index.js";
 
 async function main() {
   const scraperToken = process.env.THORDATA_SCRAPER_TOKEN;

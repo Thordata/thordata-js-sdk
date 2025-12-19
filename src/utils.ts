@@ -8,7 +8,7 @@ import {
   ThordataNetworkError,
   ThordataRateLimitError,
   ThordataTimeoutError,
-} from "./errors";
+} from "./errors.js";
 
 export function toFormUrlEncoded(data: Record<string, any>): string {
   const params = new URLSearchParams();
