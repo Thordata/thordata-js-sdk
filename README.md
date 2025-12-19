@@ -223,14 +223,14 @@ if (["ready", "success", "finished"].includes(status.toLowerCase())) {
 
 The SDK throws typed errors when the API returns a non-success code (or non-2xx HTTP status).
 
-| Code | Typical Meaning | Error class |
-|------|----------------|-------------|
-| 200 | Success | - |
-| 300 | Not collected | `ThordataNotCollectedError` |
-| 400 | Bad request | `ThordataValidationError` |
-| 401/403 | Auth/Forbidden | `ThordataAuthError` |
-| 402/429 | Quota/Rate limit | `ThordataRateLimitError` |
-| 5xx | Server/timeout issues | `ThordataServerError` / `ThordataTimeoutError` |
+| Code    | Typical Meaning       | Error class                                    |
+| ------- | --------------------- | ---------------------------------------------- |
+| 200     | Success               | -                                              |
+| 300     | Not collected         | `ThordataNotCollectedError`                    |
+| 400     | Bad request           | `ThordataValidationError`                      |
+| 401/403 | Auth/Forbidden        | `ThordataAuthError`                            |
+| 402/429 | Quota/Rate limit      | `ThordataRateLimitError`                       |
+| 5xx     | Server/timeout issues | `ThordataServerError` / `ThordataTimeoutError` |
 
 ### Example error handling:
 
