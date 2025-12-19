@@ -6,7 +6,7 @@
  */
 
 import "dotenv/config";
-import { ThordataClient, Engine } from "../src";
+import { ThordataClient, Engine } from "../src/index.js";
 
 async function main() {
   const token = process.env.THORDATA_SCRAPER_TOKEN;

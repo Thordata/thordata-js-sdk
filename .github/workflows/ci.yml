@@ -32,8 +32,8 @@ jobs:
       - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Test (Vitest)
-        run: npm test
-
       - name: Build TypeScript
         run: npm run build
+
+      - name: Test (Vitest)
+        run: npx vitest run

@@ -1,15 +1,15 @@
 // src/client.ts
 
 import axios, { AxiosInstance } from "axios";
-import { Engine, TaskStatus } from "./enums";
+import { Engine, TaskStatus } from "./enums.js";
 import {
   SerpOptions,
   UniversalOptions,
   ScraperTaskOptions,
   WaitForTaskOptions,
   ProxyConfig,
-} from "./models";
-import { ThordataError, ThordataTimeoutError } from "./errors";
+} from "./models.js";
+import { ThordataError, ThordataTimeoutError } from "./errors.js";
 import {
   buildAuthHeaders,
   buildPublicHeaders,
@@ -18,9 +18,9 @@ import {
   raiseForCode,
   safeParseJson,
   withRetry,
-} from "./utils";
-import { resolveBaseUrls, type ThordataBaseUrls } from "./endpoints";
-import { buildUserAgent } from "./utils";
+} from "./utils.js";
+import { resolveBaseUrls, type ThordataBaseUrls } from "./endpoints.js";
+import { buildUserAgent } from "./utils.js";
 
 export interface ThordataClientConfig {
   scraperToken: string;

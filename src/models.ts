@@ -1,6 +1,6 @@
 // src/models.ts
 
-import { Engine } from "./enums";
+import { Engine } from "./enums.js";
 
 /**
  * SERP search options.
