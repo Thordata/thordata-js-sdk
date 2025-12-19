@@ -2,7 +2,7 @@
   "type": "module",
   "name": "thordata-js-sdk",
   "version": "0.1.0",
-  "description": "Official JavaScript/TypeScript SDK for Thordata (SERP API, Web Unlocker, Web Scraper API).",
+  "description": "Official JavaScript/TypeScript SDK for Thordata (SERP, Universal, Web Scraper).",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -22,7 +22,8 @@
     "test": "vitest run",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
     "format": "prettier -w .",
-    "format:check": "prettier -c ."
+    "format:check": "prettier -c .",
+    "prepack": "npm run build"
   },
   "keywords": [
     "thordata",
@@ -33,6 +34,9 @@
     "typescript",
     "sdk"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Thordata Developer Team",
   "license": "MIT",
   "dependencies": {
