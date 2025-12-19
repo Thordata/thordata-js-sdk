@@ -8,24 +8,25 @@ import { Engine } from "./enums";
  */
 export interface SerpOptions {
   query: string;
-  engine?: Engine 
-    | "google" 
-    | "google_news" 
-    | "google_shopping" 
-    | "google_images" 
+  engine?:
+    | Engine
+    | "google"
+    | "google_news"
+    | "google_shopping"
+    | "google_images"
     | "google_videos"
-    | "bing" 
+    | "bing"
     | "bing_news"
-    | "yandex" 
+    | "yandex"
     | "duckduckgo";
   num?: number;
   start?: number;
-  country?: string;          // gl
-  language?: string;         // hl
-  searchType?: string;       // tbm / mode
+  country?: string; // gl
+  language?: string; // hl
+  searchType?: string; // tbm / mode
   device?: "desktop" | "mobile" | "tablet";
-  renderJs?: boolean;        // render_js (SERP-side JS rendering)
-  noCache?: boolean;         // no_cache
+  renderJs?: boolean; // render_js (SERP-side JS rendering)
+  noCache?: boolean; // no_cache
   outputFormat?: "json" | "html";
 
   // 其余所有参数（如 topic_token/shoprs/cc/mkt/...）直接透传
@@ -107,14 +108,14 @@ export interface ProxyConfigOptions {
   port: number;
 
   // Geo-targeting
-  continent?: string;  // e.g. "as", "eu"
-  country?: string;    // e.g. "us", "de"
-  state?: string;      // e.g. "california"
-  city?: string;       // e.g. "los_angeles"
-  asn?: string;        // e.g. "AS12322"
+  continent?: string; // e.g. "as", "eu"
+  country?: string; // e.g. "us", "de"
+  state?: string; // e.g. "california"
+  city?: string; // e.g. "los_angeles"
+  asn?: string; // e.g. "AS12322"
 
   // Session control
-  sessionId?: string;       // sessid-xxx
+  sessionId?: string; // sessid-xxx
   sessionDuration?: number; // sesstime in minutes (1-90)
 }
 
@@ -155,16 +156,8 @@ export class ProxyConfig {
    *  td-customer-{baseUsername}-country-us-city-seattle-sessid-xxx-sesstime-10
    */
   buildUsername(): string {
-    const {
-      baseUsername,
-      continent,
-      country,
-      state,
-      city,
-      asn,
-      sessionId,
-      sessionDuration,
-    } = this.opts;
+    const { baseUsername, continent, country, state, city, asn, sessionId, sessionDuration } =
+      this.opts;
 
     const parts: string[] = [`td-customer-${baseUsername}`];
 

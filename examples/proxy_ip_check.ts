@@ -16,9 +16,7 @@ async function main() {
   }
 
   if (!proxyUser || !proxyPass) {
-    console.error(
-      "Please set THORDATA_PROXY_USERNAME and THORDATA_PROXY_PASSWORD in .env"
-    );
+    console.error("Please set THORDATA_PROXY_USERNAME and THORDATA_PROXY_PASSWORD in .env");
     process.exit(1);
   }
 

@@ -1,67 +1,64 @@
 // src/errors.ts
 
-export class ThordataError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ThordataError";
-  }
-}
+export class ThordataError extends Error {}
 
-export class ThordataAPIError extends ThordataError {
-  statusCode?: number;
-  code?: number;
-  payload?: any;
-
-  constructor(
-    message: string,
-    statusCode?: number,
-    code?: number,
-    payload?: any
-  ) {
-    super(message);
-    this.name = "ThordataAPIError";
-    this.statusCode = statusCode;
-    this.code = code;
-    this.payload = payload;
-  }
-}
-
-export class ThordataAuthError extends ThordataAPIError {
-  constructor(message: string, statusCode?: number, code?: number, payload?: any) {
-    super(message, statusCode, code, payload);
-    this.name = "ThordataAuthError";
-  }
-}
-
-export class ThordataRateLimitError extends ThordataAPIError {
-  retryAfter?: number;
-
-  constructor(
-    message: string,
-    statusCode?: number,
-    code?: number,
-    payload?: any,
-    retryAfter?: number
-  ) {
-    super(message, statusCode, code, payload);
-    this.name = "ThordataRateLimitError";
-    this.retryAfter = retryAfter;
-  }
-}
+export class ThordataConfigError extends ThordataError {}
 
 export class ThordataNetworkError extends ThordataError {
-  originalError?: any;
-
-  constructor(message: string, originalError?: any) {
+  constructor(
+    message: string,
+    public readonly original?: unknown,
+  ) {
     super(message);
-    this.name = "ThordataNetworkError";
-    this.originalError = originalError;
   }
 }
 
-export class ThordataTimeoutError extends ThordataNetworkError {
-  constructor(message: string, originalError?: any) {
-    super(message, originalError);
-    this.name = "ThordataTimeoutError";
+export class ThordataTimeoutError extends ThordataNetworkError {}
+
+export class ThordataApiError extends ThordataError {
+  constructor(
+    message: string,
+    public readonly code?: number,
+    public readonly status?: number,
+    public readonly payload?: unknown,
+  ) {
+    super(message);
   }
+}
+
+export class ThordataAuthError extends ThordataApiError {}
+export class ThordataRateLimitError extends ThordataApiError {
+  constructor(
+    message: string,
+    code?: number,
+    status?: number,
+    payload?: unknown,
+    public readonly retryAfter?: number,
+  ) {
+    super(message, code, status, payload);
+  }
+}
+export class ThordataServerError extends ThordataApiError {}
+export class ThordataValidationError extends ThordataApiError {}
+export class ThordataNotCollectedError extends ThordataApiError {}
+
+export function raiseForCode(
+  message: string,
+  opts: { code?: number; status?: number; payload?: any },
+): never {
+  const { code, status, payload } = opts;
+  const effective = status ?? code;
+
+  if (effective === 300) throw new ThordataNotCollectedError(message, code, status, payload);
+  if (effective === 401 || effective === 403)
+    throw new ThordataAuthError(message, code, status, payload);
+  if (effective === 402 || effective === 429) {
+    const retryAfter = typeof payload?.retry_after === "number" ? payload.retry_after : undefined;
+    throw new ThordataRateLimitError(message, code, status, payload, retryAfter);
+  }
+  if (effective && effective >= 500) throw new ThordataServerError(message, code, status, payload);
+  if (effective === 400 || effective === 422)
+    throw new ThordataValidationError(message, code, status, payload);
+
+  throw new ThordataApiError(message, code, status, payload);
 }

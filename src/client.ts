@@ -19,6 +19,8 @@ import {
   safeParseJson,
   withRetry,
 } from "./utils";
+import { resolveBaseUrls, type ThordataBaseUrls } from "./endpoints";
+import { buildUserAgent } from "./utils";
 
 export interface ThordataClientConfig {
   scraperToken: string;
@@ -26,6 +28,8 @@ export interface ThordataClientConfig {
   publicKey?: string;
   timeoutMs?: number;
   maxRetries?: number; // Maximum number of retries
+  baseUrls?: Partial<ThordataBaseUrls>;
+  userAgent?: string;
 }
 
 export class ThordataClient {
@@ -35,14 +39,14 @@ export class ThordataClient {
   private timeoutMs: number;
   private maxRetries: number;
   private http: AxiosInstance;
+  private baseUrls: ThordataBaseUrls;
+  private userAgent: string;
 
-  private serpUrl = "https://scraperapi.thordata.com/request";
-  private universalUrl = "https://universalapi.thordata.com/request";
-  private scraperBuilderUrl = "https://scraperapi.thordata.com/builder";
-  private scraperStatusUrl =
-    "https://api.thordata.com/api/web-scraper-api/tasks-status";
-  private scraperDownloadUrl =
-    "https://api.thordata.com/api/web-scraper-api/tasks-download";
+  private serpUrl: string;
+  private universalUrl: string;
+  private scraperBuilderUrl: string;
+  private scraperStatusUrl: string;
+  private scraperDownloadUrl: string;
 
   constructor(config: ThordataClientConfig) {
     if (!config.scraperToken) {
@@ -57,6 +61,24 @@ export class ThordataClient {
     this.http = axios.create({
       timeout: this.timeoutMs,
     });
+
+    this.baseUrls = resolveBaseUrls(process.env, config.baseUrls);
+
+    this.serpUrl = `${this.baseUrls.scraperapiBaseUrl}/request`;
+    this.scraperBuilderUrl = `${this.baseUrls.scraperapiBaseUrl}/builder`;
+    this.universalUrl = `${this.baseUrls.universalapiBaseUrl}/request`;
+    this.scraperStatusUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-status`;
+    this.scraperDownloadUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-download`;
+
+    this.userAgent =
+      config.userAgent ??
+      buildUserAgent(
+        // fallback: avoid relying on npm_package_version in runtime
+        (process.env.npm_package_version as string) || "0.0.0",
+      );
+
+    // Set default headers for all requests
+    this.http.defaults.headers.common["User-Agent"] = this.userAgent;
   }
 
   /**
@@ -140,18 +162,12 @@ export class ThordataClient {
 
       if (outputFormat.toLowerCase() === "html") {
         if (typeof res.data === "string") return { html: res.data };
-        if (res.data && typeof res.data === "object" && "html" in res.data)
-          return res.data;
+        if (res.data && typeof res.data === "object" && "html" in res.data) return res.data;
         return { html: String(res.data) };
       }
 
       const data = safeParseJson(res.data);
-      if (
-        data &&
-        typeof data === "object" &&
-        "code" in data &&
-        data.code !== 200
-      ) {
+      if (data && typeof data === "object" && "code" in data && data.code !== 200) {
         raiseForCode("SERP API error", data, res.status);
       }
       return data;
@@ -192,10 +208,8 @@ export class ThordataClient {
     if (cleanContent) payload.clean_content = cleanContent;
     if (wait !== undefined) payload.wait = String(wait);
     if (waitFor) payload.wait_for = waitFor;
-    if (customHeaders && customHeaders.length > 0)
-      payload.headers = JSON.stringify(customHeaders);
-    if (cookies && cookies.length > 0)
-      payload.cookies = JSON.stringify(cookies);
+    if (customHeaders && customHeaders.length > 0) payload.headers = JSON.stringify(customHeaders);
+    if (cookies && cookies.length > 0) payload.cookies = JSON.stringify(cookies);
 
     Object.assign(payload, extra);
 
@@ -204,8 +218,7 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.post(this.universalUrl, toFormBody(payload), {
         headers,
-        responseType:
-          outputFormat.toLowerCase() === "png" ? "arraybuffer" : "json",
+        responseType: outputFormat.toLowerCase() === "png" ? "arraybuffer" : "json",
       });
 
       if (outputFormat.toLowerCase() === "png") {
@@ -214,12 +227,7 @@ export class ThordataClient {
 
       const data = safeParseJson(res.data);
 
-      if (
-        data &&
-        typeof data === "object" &&
-        "code" in data &&
-        data.code !== 200
-      ) {
+      if (data && typeof data === "object" && "code" in data && data.code !== 200) {
         raiseForCode("Universal API error", data, res.status);
       }
 
@@ -264,11 +272,7 @@ export class ThordataClient {
     const headers = buildAuthHeaders(this.scraperToken);
 
     return this.execute(async () => {
-      const res = await this.http.post(
-        this.scraperBuilderUrl,
-        toFormBody(payload),
-        { headers }
-      );
+      const res = await this.http.post(this.scraperBuilderUrl, toFormBody(payload), { headers });
 
       const data = safeParseJson(res.data);
       if (!data || typeof data !== "object") {
@@ -290,7 +294,7 @@ export class ThordataClient {
   private requirePublicCreds(): void {
     if (!this.publicToken || !this.publicKey) {
       throw new ThordataError(
-        "publicToken and publicKey are required for Web Scraper public API calls"
+        "publicToken and publicKey are required for Web Scraper public API calls",
       );
     }
   }
@@ -301,11 +305,7 @@ export class ThordataClient {
     const payload = { tasks_ids: taskId };
 
     return this.execute(async () => {
-      const res = await this.http.post(
-        this.scraperStatusUrl,
-        toFormBody(payload),
-        { headers }
-      );
+      const res = await this.http.post(this.scraperStatusUrl, toFormBody(payload), { headers });
 
       const data = safeParseJson(res.data);
       if (data?.code === 200 && Array.isArray(data.data)) {
@@ -319,20 +319,13 @@ export class ThordataClient {
     });
   }
 
-  async getTaskResult(
-    taskId: string,
-    fileType: "json" | "csv" | "xlsx" = "json"
-  ): Promise<string> {
+  async getTaskResult(taskId: string, fileType: "json" | "csv" | "xlsx" = "json"): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
     const payload = { tasks_id: taskId, type: fileType };
 
     return this.execute(async () => {
-      const res = await this.http.post(
-        this.scraperDownloadUrl,
-        toFormBody(payload),
-        { headers }
-      );
+      const res = await this.http.post(this.scraperDownloadUrl, toFormBody(payload), { headers });
 
       const data = safeParseJson(res.data);
       if (data?.code === 200 && data?.data?.download) {
@@ -344,10 +337,7 @@ export class ThordataClient {
     });
   }
 
-  async waitForTask(
-    taskId: string,
-    options: WaitForTaskOptions = {}
-  ): Promise<string> {
+  async waitForTask(taskId: string, options: WaitForTaskOptions = {}): Promise<string> {
     const pollIntervalMs = options.pollIntervalMs ?? 5000;
     const maxWaitMs = options.maxWaitMs ?? 10 * 60 * 1000;
     const start = Date.now();
@@ -375,9 +365,7 @@ export class ThordataClient {
       await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
     }
 
-    throw new ThordataTimeoutError(
-      `Task ${taskId} did not complete within ${maxWaitMs} ms`
-    );
+    throw new ThordataTimeoutError(`Task ${taskId} did not complete within ${maxWaitMs} ms`);
   }
 
   // --------------------------
@@ -387,7 +375,7 @@ export class ThordataClient {
   async requestViaProxy(
     url: string,
     proxyConfig: ProxyConfig,
-    axiosConfig: Record<string, any> = {}
+    axiosConfig: Record<string, any> = {},
   ): Promise<any> {
     if (!url) {
       throw new ThordataError("url is required for requestViaProxy");
