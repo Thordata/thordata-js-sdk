@@ -6,10 +6,10 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev:serp": "ts-node examples/basic_serp.ts",
-    "dev:universal": "ts-node examples/basic_universal.ts",
-    "dev:scraper": "ts-node examples/basic_scraper_task.ts",
-    "test": "echo \"No tests yet\""
+    "test": "vitest run",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
+    "format": "prettier -w .",
+    "format:check": "prettier -c ."
   },
   "keywords": [
     "thordata",
@@ -32,6 +32,7 @@
     "@types/node": "^22.8.1",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
+    "nock": "^14.0.10",
     "prettier": "^3.7.4",
     "ruff": "^1.5.4",
     "ts-node": "^10.9.2",

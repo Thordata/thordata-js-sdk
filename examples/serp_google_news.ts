@@ -44,7 +44,7 @@ async function main() {
       country: "us",
       language: "en",
       num: 5,
-      so: 1,  // Sort by date
+      so: 1, // Sort by date
     });
     printNewsResults(results);
   } catch (e: any) {

@@ -9,7 +9,9 @@ async function main() {
   const publicKey = process.env.THORDATA_PUBLIC_KEY;
 
   if (!scraperToken || !publicToken || !publicKey) {
-    console.error("Please set THORDATA_SCRAPER_TOKEN, THORDATA_PUBLIC_TOKEN, THORDATA_PUBLIC_KEY in .env");
+    console.error(
+      "Please set THORDATA_SCRAPER_TOKEN, THORDATA_PUBLIC_TOKEN, THORDATA_PUBLIC_KEY in .env",
+    );
     process.exit(1);
   }
 

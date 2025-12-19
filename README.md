@@ -74,7 +74,7 @@ import { ThordataClient } from "thordata-js-sdk"; // or "../src" / "../dist"
 const client = new ThordataClient({
   scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
   publicToken: process.env.THORDATA_PUBLIC_TOKEN, // optional
-  publicKey: process.env.THORDATA_PUBLIC_KEY,     // optional
+  publicKey: process.env.THORDATA_PUBLIC_KEY, // optional
 });
 ```
 
@@ -171,9 +171,7 @@ const html = await client.universalScrape({
     { name: "User-Agent", value: "Mozilla/5.0 (ThordataDemo/1.0)" },
     { name: "X-Demo-Header", value: "DemoValue" },
   ],
-  cookies: [
-    { name: "session", value: "abc123" },
-  ],
+  cookies: [{ name: "session", value: "abc123" }],
 });
 ```
 
@@ -208,7 +206,7 @@ const client = new ThordataClient({
 async function runTask() {
   const taskId = await client.createScraperTask({
     fileName: "demo_task",
-    spiderId: "example-spider-id",   // Get from Thordata Dashboard
+    spiderId: "example-spider-id", // Get from Thordata Dashboard
     spiderName: "example.com",
     parameters: {
       url: "https://example.com",
@@ -236,26 +234,22 @@ async function runTask() {
 
 The SDK will automatically throw the corresponding exception based on the code field returned by the API. Common status codes are as follows:
 
-| Code | Status | Exception | Description |
-|------|--------|-----------|-------------|
-| 200 | Success | - | Request successful, data retrieved. |
-| 300 | Not collected | `ThordataAPIError` | Failed to parse/process response (no valid data). |
-| 400 | Bad Request | `ThordataAPIError` | Invalid parameters. |
-| 401 | Unauthorized | `ThordataAuthError` | Check your scraper token. |
-| 403 | Forbidden | `ThordataAuthError` | Access denied. |
-| 404 | Not Found | `ThordataAPIError` | Resource does not exist. |
-| 429 | Too Many Requests | `ThordataRateLimitError` | Rate limit exceeded. Check `e.retryAfter`. |
-| 500 | Internal Server Error | `ThordataAPIError` | Server-side error. |
-| 504 | Timeout | `ThordataTimeoutError` | Gateway timed out waiting for upstream. |
+| Code | Status                | Exception                | Description                                       |
+| ---- | --------------------- | ------------------------ | ------------------------------------------------- |
+| 200  | Success               | -                        | Request successful, data retrieved.               |
+| 300  | Not collected         | `ThordataAPIError`       | Failed to parse/process response (no valid data). |
+| 400  | Bad Request           | `ThordataAPIError`       | Invalid parameters.                               |
+| 401  | Unauthorized          | `ThordataAuthError`      | Check your scraper token.                         |
+| 403  | Forbidden             | `ThordataAuthError`      | Access denied.                                    |
+| 404  | Not Found             | `ThordataAPIError`       | Resource does not exist.                          |
+| 429  | Too Many Requests     | `ThordataRateLimitError` | Rate limit exceeded. Check `e.retryAfter`.        |
+| 500  | Internal Server Error | `ThordataAPIError`       | Server-side error.                                |
+| 504  | Timeout               | `ThordataTimeoutError`   | Gateway timed out waiting for upstream.           |
 
 ### Handling Errors
 
 ```ts
-import {
-  ThordataAuthError,
-  ThordataRateLimitError,
-  ThordataTimeoutError,
-} from "thordata-js-sdk";
+import { ThordataAuthError, ThordataRateLimitError, ThordataTimeoutError } from "thordata-js-sdk";
 
 try {
   const result = await client.serpSearch({ query: "test" });
