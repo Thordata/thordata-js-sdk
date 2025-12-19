@@ -36,4 +36,4 @@ jobs:
         run: npm run build
 
       - name: Test (Vitest)
-        run: npx test
+        run: npx vitest run
