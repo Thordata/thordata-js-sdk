@@ -8,6 +8,12 @@ export interface ProxyCredentials {
   password: string;
 }
 
+export interface StaticProxyConfig {
+  host: string;
+  username: string;
+  password: string;
+}
+
 export interface ProxyOptions {
   country?: string;
   region?: string;
@@ -35,18 +41,21 @@ export class Proxy {
   private product: ProxyProduct;
   private credentials: ProxyCredentials;
   private opts: ProxyOptions;
+  private staticConfig?: StaticProxyConfig;
 
   private constructor(
     product: ProxyProduct,
     credentials: ProxyCredentials,
     opts: ProxyOptions = {},
+    staticConfig?: StaticProxyConfig,
   ) {
     this.product = product;
     this.credentials = credentials;
     this.opts = opts;
+    this.staticConfig = staticConfig;
   }
 
-  // Factory methods - each requires its own credentials
+  // Factory methods for dynamic proxies
 
   static residential(creds: ProxyCredentials, opts?: ProxyOptions): Proxy {
     return new Proxy("residential", creds, opts);
@@ -60,11 +69,13 @@ export class Proxy {
     return new Proxy("mobile", creds, opts);
   }
 
-  static isp(creds: ProxyCredentials, opts?: ProxyOptions): Proxy {
-    return new Proxy("isp", creds, opts);
+  // Factory method for static ISP proxy (direct IP connection, port always 6666)
+  static isp(config: StaticProxyConfig): Proxy {
+    return new Proxy("isp", { username: config.username, password: config.password }, {}, config);
   }
 
-  // Helper: create from environment variables
+  // FromEnv helpers
+
   static residentialFromEnv(opts?: ProxyOptions): Proxy {
     const username = process.env.THORDATA_RESIDENTIAL_USERNAME;
     const password = process.env.THORDATA_RESIDENTIAL_PASSWORD;
@@ -94,32 +105,50 @@ export class Proxy {
     return new Proxy("mobile", { username, password }, opts);
   }
 
-  static ispFromEnv(opts?: ProxyOptions): Proxy {
+  static ispFromEnv(): Proxy {
+    const host = process.env.THORDATA_ISP_HOST;
     const username = process.env.THORDATA_ISP_USERNAME;
     const password = process.env.THORDATA_ISP_PASSWORD;
-    if (!username || !password) {
-      throw new Error("THORDATA_ISP_USERNAME and THORDATA_ISP_PASSWORD are required");
+
+    if (!host || !username || !password) {
+      throw new Error(
+        "THORDATA_ISP_HOST, THORDATA_ISP_USERNAME, and THORDATA_ISP_PASSWORD are required",
+      );
     }
-    return new Proxy("isp", { username, password }, opts);
+
+    return Proxy.isp({ host, username, password });
   }
 
-  // Chainable options
+  // Chainable options (only for dynamic proxies)
+
   country(code: string): Proxy {
+    if (this.staticConfig) {
+      throw new Error("country() is not supported for static ISP proxies");
+    }
     this.opts.country = code.toLowerCase();
     return this;
   }
 
   city(name: string): Proxy {
+    if (this.staticConfig) {
+      throw new Error("city() is not supported for static ISP proxies");
+    }
     this.opts.city = name.toLowerCase().replace(/\s+/g, "_");
     return this;
   }
 
   session(id: string): Proxy {
+    if (this.staticConfig) {
+      throw new Error("session() is not supported for static ISP proxies");
+    }
     this.opts.session = id;
     return this;
   }
 
   sticky(minutes: number): Proxy {
+    if (this.staticConfig) {
+      throw new Error("sticky() is not supported for static ISP proxies");
+    }
     if (minutes < 1 || minutes > 90) {
       throw new Error("sticky minutes must be between 1 and 90");
     }
@@ -132,6 +161,10 @@ export class Proxy {
 
   // Build the full username with geo/session parameters
   private buildUsername(): string {
+    if (this.staticConfig) {
+      return this.credentials.username;
+    }
+
     const parts: string[] = [`td-customer-${this.credentials.username}`];
 
     if (this.opts.country) {
@@ -152,6 +185,17 @@ export class Proxy {
 
   // Generate axios proxy config
   toAxiosConfig(): AxiosProxyConfig {
+    if (this.staticConfig) {
+      return {
+        host: this.staticConfig.host,
+        port: PROXY_PORTS.isp, // Always 6666
+        auth: {
+          username: this.credentials.username,
+          password: this.credentials.password,
+        },
+      };
+    }
+
     return {
       host: PROXY_HOSTS[this.product],
       port: PROXY_PORTS[this.product],
@@ -162,8 +206,10 @@ export class Proxy {
     };
   }
 
-  // For debugging
   toString(): string {
+    if (this.staticConfig) {
+      return `[Proxy isp static ${this.staticConfig.host}:${PROXY_PORTS.isp}]`;
+    }
     return `[Proxy ${this.product} ${this.opts.country || "random"}]`;
   }
 }
