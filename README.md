@@ -143,6 +143,88 @@ Official and up-to-date parameters are documented at: https://doc.thordata.com
 
 ---
 
+## 🌐 Proxy Network
+
+Each proxy product requires separate credentials from Thordata Dashboard.
+
+### Environment Variables
+
+```env
+# Residential Proxy (port 9999)
+THORDATA_RESIDENTIAL_USERNAME=your_residential_username
+THORDATA_RESIDENTIAL_PASSWORD=your_residential_password
+
+# Datacenter Proxy (port 7777)
+THORDATA_DATACENTER_USERNAME=your_datacenter_username
+THORDATA_DATACENTER_PASSWORD=your_datacenter_password
+
+# Mobile Proxy (port 5555)
+THORDATA_MOBILE_USERNAME=your_mobile_username
+THORDATA_MOBILE_PASSWORD=your_mobile_password
+
+# Static ISP Proxy (port 6666, direct IP connection)
+THORDATA_ISP_HOST=your_static_ip_address
+THORDATA_ISP_USERNAME=your_isp_username
+THORDATA_ISP_PASSWORD=your_isp_password
+```
+
+### Residential Proxy
+
+```typescript
+import { Thordata } from "thordata-js-sdk";
+
+const client = new Thordata();
+
+// Basic US residential
+const proxy = Thordata.Proxy.residentialFromEnv().country("us");
+const result = await client.request("http://httpbin.org/ip", { proxy });
+console.log("IP:", result.origin);
+
+// Sticky session (same IP for 30 minutes)
+const stickyProxy = Thordata.Proxy.residentialFromEnv()
+  .country("jp")
+  .city("tokyo")
+  .session("my_session")
+  .sticky(30);
+const result2 = await client.request("http://httpbin.org/ip", { proxy: stickyProxy });
+```
+
+### Datacenter Proxy
+
+```typescript
+const proxy = Thordata.Proxy.datacenterFromEnv();
+const result = await client.request("http://httpbin.org/ip", { proxy });
+console.log("Datacenter IP:", result.origin);
+```
+
+### Mobile Proxy
+
+```typescript
+const proxy = Thordata.Proxy.mobileFromEnv().country("gb");
+const result = await client.request("http://httpbin.org/ip", { proxy });
+console.log("UK Mobile IP:", result.origin);
+```
+
+### Static ISP Proxy
+
+```typescript
+const proxy = Thordata.Proxy.ispFromEnv();
+const result = await client.request("http://httpbin.org/ip", { proxy });
+console.log("Static ISP IP:", result.origin);
+// Returns your purchased static IP address
+```
+
+### Proxy Examples
+
+```bash
+node dist/examples/proxy_residential.js
+node dist/examples/proxy_datacenter.js
+node dist/examples/proxy_mobile.js
+node dist/examples/proxy_isp.js
+```
+
+---
+
 ## 🔓 Web Unlocker / Universal API
 
 ### Basic HTML scraping
