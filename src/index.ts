@@ -1,8 +1,9 @@
 // src/index.ts
-
-export * from "./client.js";
 export * from "./enums.js";
 export * from "./errors.js";
-export * from "./models.js";
-export * from "./retry.js";
-export * from "./endpoints.js";
+export * from "./thordata.js";
+export * from "./proxy.js";
+
+// 保持兼容性（老用户不受影响）
+export { ThordataClient } from "./client.js";
+export type { SerpOptions, UniversalOptions, ScraperTaskOptions } from "./models.js";

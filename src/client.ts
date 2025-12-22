@@ -1,14 +1,9 @@
 // src/client.ts
 
 import axios, { AxiosInstance } from "axios";
+import https from "node:https";
 import { Engine, TaskStatus } from "./enums.js";
-import {
-  SerpOptions,
-  UniversalOptions,
-  ScraperTaskOptions,
-  WaitForTaskOptions,
-  ProxyConfig,
-} from "./models.js";
+import { SerpOptions, UniversalOptions, ScraperTaskOptions, WaitForTaskOptions } from "./models.js";
 import { ThordataError, ThordataTimeoutError } from "./errors.js";
 import {
   buildAuthHeaders,
@@ -21,6 +16,7 @@ import {
 } from "./utils.js";
 import { resolveBaseUrls, type ThordataBaseUrls } from "./endpoints.js";
 import { buildUserAgent } from "./utils.js";
+import { Proxy } from "./proxy.js";
 
 export interface ThordataClientConfig {
   scraperToken: string;
@@ -372,20 +368,26 @@ export class ThordataClient {
   // 4) Proxy Network
   // --------------------------
 
-  async requestViaProxy(
+  async request(
     url: string,
-    proxyConfig: ProxyConfig,
-    axiosConfig: Record<string, any> = {},
+    config: { proxy?: Proxy; timeout?: number; [key: string]: any } = {},
   ): Promise<any> {
     if (!url) {
-      throw new ThordataError("url is required for requestViaProxy");
+      throw new ThordataError("url is required for request");
+    }
+
+    const axiosConfig: any = {
+      ...config,
+      timeout: config.timeout ?? this.timeoutMs,
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    };
+
+    if (config.proxy instanceof Proxy) {
+      axiosConfig.proxy = config.proxy.toAxiosConfig();
     }
 
     return this.execute(async () => {
-      const res = await this.http.get(url, {
-        ...axiosConfig,
-        proxy: proxyConfig.toAxiosProxyConfig(),
-      });
+      const res = await this.http.get(url, axiosConfig);
       return res.data;
     });
   }
