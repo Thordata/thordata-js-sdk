@@ -26,3 +26,16 @@ Thumbs.db
 # Compiled example outputs
 examples/**/*.js
 examples/**/*.d.ts
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Lock files (optional, some prefer to commit)
+# package-lock.json
