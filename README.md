@@ -225,6 +225,42 @@ node dist/examples/proxy_isp.js
 
 ---
 
+## 📍 Location API
+
+Query available geo-targeting options. Requires `THORDATA_PUBLIC_TOKEN` and `THORDATA_PUBLIC_KEY`.
+
+### List Countries
+
+```typescript
+const countries = await client.listCountries("residential");
+console.log(`Found ${countries.length} countries`);
+// [{ country_code: "US", country_name: "United States" }, ...]
+```
+
+### List States
+
+```typescript
+const states = await client.listStates("US", "residential");
+console.log(`Found ${states.length} states`);
+// [{ state_code: "california", state_name: "California" }, ...]
+```
+
+### List Cities
+
+```typescript
+const cities = await client.listCities("US", "california", "residential");
+console.log(`Found ${cities.length} cities`);
+// [{ city_name: "Los Angeles" }, { city_name: "San Francisco" }, ...]
+```
+
+### List ASNs
+
+```typescript
+const asns = await client.listAsns("US", "residential");
+console.log(`Found ${asns.length} ASNs`);
+// [{ asn_code: "AS7922", asn_name: "Comcast" }, ...]
+```
+
 ## 🔓 Web Unlocker / Universal API
 
 ### Basic HTML scraping
@@ -400,6 +436,7 @@ thordata-js-sdk/
 │   ├── basic_serp.ts
 │   ├── basic_universal.ts
 │   ├── basic_scraper_task.ts
+│   ├── location_api.ts
 │   └── serp_google_news.ts
 ├── tests/
 │   ├── serp.offline.test.ts

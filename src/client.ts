@@ -391,4 +391,90 @@ export class ThordataClient {
       return res.data;
     });
   }
+
+  // --------------------------
+  // 5) Location API
+  // --------------------------
+
+  /**
+   * Internal method to call locations API.
+   */
+  private async getLocations(
+    endpoint: string,
+    params: Record<string, string | number> = {},
+  ): Promise<any[]> {
+    this.requirePublicCreds();
+
+    const queryParams = new URLSearchParams({
+      token: this.publicToken!,
+      key: this.publicKey!,
+      ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+    });
+
+    const url = `${this.baseUrls.locationsBaseUrl}/${endpoint}?${queryParams.toString()}`;
+
+    return this.execute(async () => {
+      const res = await this.http.get(url);
+      const data = safeParseJson(res.data);
+
+      if (data?.code === 200 && Array.isArray(data.data)) {
+        return data.data;
+      }
+      if (Array.isArray(data)) {
+        return data;
+      }
+
+      raiseForCode(`Location API (${endpoint}) failed`, data, res.status);
+      return [];
+    });
+  }
+
+  /**
+   * List all supported countries for a proxy type.
+   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
+   */
+  async listCountries(proxyType: number = 1): Promise<any[]> {
+    return this.getLocations("countries", { proxy_type: proxyType });
+  }
+
+  /**
+   * List states/regions for a country.
+   * @param countryCode - Country code (e.g., "US")
+   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
+   */
+  async listStates(countryCode: string, proxyType: number = 1): Promise<any[]> {
+    return this.getLocations("states", {
+      proxy_type: proxyType,
+      country_code: countryCode.toUpperCase(),
+    });
+  }
+
+  /**
+   * List cities for a country (and optionally state).
+   * @param countryCode - Country code (e.g., "US")
+   * @param stateCode - Optional state code (e.g., "california")
+   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
+   */
+  async listCities(countryCode: string, stateCode?: string, proxyType: number = 1): Promise<any[]> {
+    const params: Record<string, string | number> = {
+      proxy_type: proxyType,
+      country_code: countryCode.toUpperCase(),
+    };
+    if (stateCode) {
+      params.state_code = stateCode.toLowerCase();
+    }
+    return this.getLocations("cities", params);
+  }
+
+  /**
+   * List ASNs for a country.
+   * @param countryCode - Country code (e.g., "US")
+   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
+   */
+  async listAsns(countryCode: string, proxyType: number = 1): Promise<any[]> {
+    return this.getLocations("asn", {
+      proxy_type: proxyType,
+      country_code: countryCode.toUpperCase(),
+    });
+  }
 }

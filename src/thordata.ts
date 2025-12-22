@@ -12,7 +12,11 @@ export class Thordata extends ThordataClient {
       );
     }
 
-    super({ scraperToken: finalToken });
+    super({
+      scraperToken: finalToken,
+      publicToken: process.env.THORDATA_PUBLIC_TOKEN,
+      publicKey: process.env.THORDATA_PUBLIC_KEY,
+    });
   }
 
   // Expose Proxy class for easy access
