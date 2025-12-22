@@ -1,6 +1,11 @@
 // examples/proxy_mobile.ts
+
 import "dotenv/config";
 import { Thordata } from "../src/thordata.js";
+
+interface HttpBinResponse {
+  origin: string;
+}
 
 async function main() {
   if (!process.env.THORDATA_MOBILE_USERNAME || !process.env.THORDATA_MOBILE_PASSWORD) {
@@ -15,7 +20,7 @@ async function main() {
   console.log("Mobile Proxy Demo\n");
 
   const proxy = Thordata.Proxy.mobileFromEnv().country("gb");
-  const result = await client.request(testUrl, { proxy });
+  const result = (await client.request(testUrl, { proxy })) as HttpBinResponse;
   console.log("UK Mobile IP:", result.origin);
 }
 

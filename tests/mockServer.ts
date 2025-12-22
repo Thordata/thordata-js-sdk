@@ -1,3 +1,5 @@
+// tests/mockServer.ts
+
 import http from "node:http";
 import { AddressInfo } from "node:net";
 
@@ -33,15 +35,17 @@ export async function startMockServer(): Promise<{
 
       // SERP request
       if (engine) {
+        // Google News
         if (engine === "google_news") {
           res.end(
             JSON.stringify({
               code: 200,
-              news_results: [{ title: "Example News", link: "https://example.com", snippet: "x" }],
+              news: [{ title: "Example News", link: "https://example.com", snippet: "x" }],
             }),
           );
           return;
         }
+        // Google Shopping
         if (engine === "google_shopping") {
           res.end(
             JSON.stringify({
@@ -52,6 +56,7 @@ export async function startMockServer(): Promise<{
           return;
         }
 
+        // Default SERP response (for google_search, bing_search, etc.)
         res.end(
           JSON.stringify({
             code: 200,

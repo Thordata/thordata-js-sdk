@@ -1,20 +1,51 @@
 // src/errors.ts
 
-export class ThordataError extends Error {}
+/**
+ * Base error class for all Thordata SDK errors.
+ */
+export class ThordataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThordataError";
+  }
+}
 
-export class ThordataConfigError extends ThordataError {}
+/**
+ * Configuration error (e.g., missing required options).
+ */
+export class ThordataConfigError extends ThordataError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThordataConfigError";
+  }
+}
 
+/**
+ * Network-level error (connection issues, DNS failures, etc.).
+ */
 export class ThordataNetworkError extends ThordataError {
   constructor(
     message: string,
     public readonly original?: unknown,
   ) {
     super(message);
+    this.name = "ThordataNetworkError";
   }
 }
 
-export class ThordataTimeoutError extends ThordataNetworkError {}
+/**
+ * Request timeout error.
+ */
+export class ThordataTimeoutError extends ThordataNetworkError {
+  constructor(message: string, original?: unknown) {
+    super(message, original);
+    this.name = "ThordataTimeoutError";
+  }
+}
 
+/**
+ * API-level error (non-2xx responses or error codes in response body).
+ */
 export class ThordataApiError extends ThordataError {
   constructor(
     message: string,
@@ -23,10 +54,23 @@ export class ThordataApiError extends ThordataError {
     public readonly payload?: unknown,
   ) {
     super(message);
+    this.name = "ThordataApiError";
   }
 }
 
-export class ThordataAuthError extends ThordataApiError {}
+/**
+ * Authentication/authorization error (401/403).
+ */
+export class ThordataAuthError extends ThordataApiError {
+  constructor(message: string, code?: number, status?: number, payload?: unknown) {
+    super(message, code, status, payload);
+    this.name = "ThordataAuthError";
+  }
+}
+
+/**
+ * Rate limit or quota exceeded error (402/429).
+ */
 export class ThordataRateLimitError extends ThordataApiError {
   constructor(
     message: string,
@@ -36,29 +80,36 @@ export class ThordataRateLimitError extends ThordataApiError {
     public readonly retryAfter?: number,
   ) {
     super(message, code, status, payload);
+    this.name = "ThordataRateLimitError";
   }
 }
-export class ThordataServerError extends ThordataApiError {}
-export class ThordataValidationError extends ThordataApiError {}
-export class ThordataNotCollectedError extends ThordataApiError {}
 
-export function raiseForCode(
-  message: string,
-  opts: { code?: number; status?: number; payload?: any },
-): never {
-  const { code, status, payload } = opts;
-  const effective = code ?? status;
-
-  if (effective === 300) throw new ThordataNotCollectedError(message, code, status, payload);
-  if (effective === 401 || effective === 403)
-    throw new ThordataAuthError(message, code, status, payload);
-  if (effective === 402 || effective === 429) {
-    const retryAfter = typeof payload?.retry_after === "number" ? payload.retry_after : undefined;
-    throw new ThordataRateLimitError(message, code, status, payload, retryAfter);
+/**
+ * Server-side error (5xx).
+ */
+export class ThordataServerError extends ThordataApiError {
+  constructor(message: string, code?: number, status?: number, payload?: unknown) {
+    super(message, code, status, payload);
+    this.name = "ThordataServerError";
   }
-  if (effective && effective >= 500) throw new ThordataServerError(message, code, status, payload);
-  if (effective === 400 || effective === 422)
-    throw new ThordataValidationError(message, code, status, payload);
+}
 
-  throw new ThordataApiError(message, code, status, payload);
+/**
+ * Validation error (400/422).
+ */
+export class ThordataValidationError extends ThordataApiError {
+  constructor(message: string, code?: number, status?: number, payload?: unknown) {
+    super(message, code, status, payload);
+    this.name = "ThordataValidationError";
+  }
+}
+
+/**
+ * Data not collected error (code 300).
+ */
+export class ThordataNotCollectedError extends ThordataApiError {
+  constructor(message: string, code?: number, status?: number, payload?: unknown) {
+    super(message, code, status, payload);
+    this.name = "ThordataNotCollectedError";
+  }
 }

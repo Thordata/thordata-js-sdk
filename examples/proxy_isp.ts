@@ -1,6 +1,11 @@
 // examples/proxy_isp.ts
+
 import "dotenv/config";
 import { Thordata } from "../src/thordata.js";
+
+interface HttpBinResponse {
+  origin: string;
+}
 
 async function main() {
   if (
@@ -19,7 +24,7 @@ async function main() {
   console.log("Static ISP Proxy Demo\n");
 
   const proxy = Thordata.Proxy.ispFromEnv();
-  const result = await client.request(testUrl, { proxy });
+  const result = (await client.request(testUrl, { proxy })) as HttpBinResponse;
   console.log("Static ISP IP:", result.origin);
   console.log("Expected IP  :", process.env.THORDATA_ISP_HOST);
 }

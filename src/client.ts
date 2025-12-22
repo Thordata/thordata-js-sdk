@@ -3,8 +3,18 @@
 import axios, { AxiosInstance } from "axios";
 import https from "node:https";
 import { Engine, TaskStatus } from "./enums.js";
-import { SerpOptions, UniversalOptions, ScraperTaskOptions, WaitForTaskOptions } from "./models.js";
-import { ThordataError, ThordataTimeoutError } from "./errors.js";
+import {
+  SerpOptions,
+  UniversalOptions,
+  ScraperTaskOptions,
+  WaitForTaskOptions,
+  ProxyTypeParam,
+  CountryInfo,
+  StateInfo,
+  CityInfo,
+  AsnInfo,
+} from "./models.js";
+import { ThordataError, ThordataTimeoutError, ThordataConfigError } from "./errors.js";
 import {
   buildAuthHeaders,
   buildPublicHeaders,
@@ -13,21 +23,49 @@ import {
   raiseForCode,
   safeParseJson,
   withRetry,
+  buildUserAgent,
 } from "./utils.js";
 import { resolveBaseUrls, type ThordataBaseUrls } from "./endpoints.js";
-import { buildUserAgent } from "./utils.js";
 import { Proxy } from "./proxy.js";
 
+/**
+ * Configuration options for ThordataClient.
+ */
 export interface ThordataClientConfig {
+  /** API token for SERP and Universal APIs */
   scraperToken: string;
+  /** Public token for Web Scraper API and Location API */
   publicToken?: string;
+  /** Public key for Web Scraper API and Location API */
   publicKey?: string;
+  /** Request timeout in milliseconds (default: 30000) */
   timeoutMs?: number;
-  maxRetries?: number; // Maximum number of retries
+  /** Maximum number of retries on failure (default: 0) */
+  maxRetries?: number;
+  /** Custom base URLs for API endpoints */
   baseUrls?: Partial<ThordataBaseUrls>;
+  /** Custom User-Agent string */
   userAgent?: string;
+  /**
+   * Whether to verify SSL certificates (default: true).
+   * Set to false only for testing with self-signed certificates.
+   */
+  verifySsl?: boolean;
 }
 
+/**
+ * Normalize proxy type parameter to numeric value.
+ */
+function normalizeProxyType(proxyType: ProxyTypeParam): number {
+  if (typeof proxyType === "number") {
+    return proxyType;
+  }
+  return proxyType === "residential" ? 1 : 2;
+}
+
+/**
+ * Main client for interacting with Thordata APIs.
+ */
 export class ThordataClient {
   private scraperToken: string;
   private publicToken?: string;
@@ -46,16 +84,20 @@ export class ThordataClient {
 
   constructor(config: ThordataClientConfig) {
     if (!config.scraperToken) {
-      throw new ThordataError("scraperToken is required");
+      throw new ThordataConfigError("scraperToken is required");
     }
+
     this.scraperToken = config.scraperToken;
     this.publicToken = config.publicToken;
     this.publicKey = config.publicKey;
     this.timeoutMs = config.timeoutMs ?? 30000;
-    this.maxRetries = config.maxRetries ?? 0; // Default: no retry
+    this.maxRetries = config.maxRetries ?? 0;
+
+    const verifySsl = config.verifySsl ?? true;
 
     this.http = axios.create({
       timeout: this.timeoutMs,
+      httpsAgent: new https.Agent({ rejectUnauthorized: verifySsl }),
     });
 
     this.baseUrls = resolveBaseUrls(process.env, config.baseUrls);
@@ -66,19 +108,14 @@ export class ThordataClient {
     this.scraperStatusUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-status`;
     this.scraperDownloadUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-download`;
 
-    this.userAgent =
-      config.userAgent ??
-      buildUserAgent(
-        // fallback: avoid relying on npm_package_version in runtime
-        (process.env.npm_package_version as string) || "0.0.0",
-      );
+    const pkgVersion = (process.env.npm_package_version as string) || "0.0.0";
+    this.userAgent = config.userAgent ?? buildUserAgent(pkgVersion);
 
-    // Set default headers for all requests
     this.http.defaults.headers.common["User-Agent"] = this.userAgent;
   }
 
   /**
-   * Internal helper to execute request with retry logic
+   * Execute request with retry logic.
    */
   private async execute<T>(requestFn: () => Promise<T>): Promise<T> {
     return withRetry(async () => {
@@ -94,7 +131,29 @@ export class ThordataClient {
   // 1) SERP API
   // --------------------------
 
-  async serpSearch(options: SerpOptions): Promise<any> {
+  /**
+   * Perform a search using the SERP API.
+   *
+   * Supported engines: google, bing, yandex, duckduckgo
+   * Plus Google specialized engines: google_news, google_shopping, etc.
+   *
+   * @example
+   * ```typescript
+   * // Basic Google search
+   * const results = await client.serpSearch({
+   *   query: "pizza",
+   *   engine: Engine.GOOGLE,
+   *   country: "us",
+   * });
+   *
+   * // Google News (recommended: use dedicated engine)
+   * const news = await client.serpSearch({
+   *   query: "AI regulation",
+   *   engine: Engine.GOOGLE_NEWS,
+   * });
+   * ```
+   */
+  async serpSearch(options: SerpOptions): Promise<Record<string, unknown>> {
     const {
       query,
       engine = Engine.GOOGLE,
@@ -111,16 +170,17 @@ export class ThordataClient {
     } = options;
 
     if (!query) {
-      throw new ThordataError("query is required for serpSearch");
+      throw new ThordataConfigError("query is required for serpSearch");
     }
 
     const engineStr = String(engine).toLowerCase();
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       engine: engineStr,
       json: outputFormat.toLowerCase() === "html" ? "0" : "1",
     };
 
+    // Yandex uses 'text' instead of 'q'
     if (engineStr === "yandex") {
       payload.text = query;
     } else {
@@ -132,15 +192,9 @@ export class ThordataClient {
     if (country) payload.gl = country.toLowerCase();
     if (language) payload.hl = language.toLowerCase();
 
+    // tbm parameter (only for specific Google engines)
     if (searchType) {
-      const st = searchType.toLowerCase();
-      const tbmMap: Record<string, string> = {
-        images: "isch",
-        shopping: "shop",
-        news: "nws",
-        videos: "vid",
-      };
-      payload.tbm = tbmMap[st] ?? st;
+      payload.tbm = searchType.toLowerCase();
     }
 
     if (device) payload.device = device.toLowerCase();
@@ -162,7 +216,7 @@ export class ThordataClient {
         return { html: String(res.data) };
       }
 
-      const data = safeParseJson(res.data);
+      const data = safeParseJson(res.data) as Record<string, unknown>;
       if (data && typeof data === "object" && "code" in data && data.code !== 200) {
         raiseForCode("SERP API error", data, res.status);
       }
@@ -174,7 +228,35 @@ export class ThordataClient {
   // 2) Universal / Web Unlocker
   // --------------------------
 
-  async universalScrape(options: UniversalOptions): Promise<string | Buffer> {
+  /**
+   * Scrape a URL using the Universal/Web Unlocker API.
+   *
+   * @example
+   * ```typescript
+   * // Basic HTML scraping
+   * const html = await client.universalScrape({
+   *   url: "https://example.com",
+   *   jsRender: false,
+   * });
+   *
+   * // With JS rendering and wait for element
+   * const html = await client.universalScrape({
+   *   url: "https://example.com/spa",
+   *   jsRender: true,
+   *   waitFor: ".main-content",
+   * });
+   *
+   * // Screenshot
+   * const png = await client.universalScrape({
+   *   url: "https://example.com",
+   *   jsRender: true,
+   *   outputFormat: "png",
+   * });
+   * ```
+   */
+  async universalScrape(
+    options: UniversalOptions,
+  ): Promise<string | Buffer | Record<string, unknown>> {
     const {
       url,
       jsRender = false,
@@ -190,13 +272,22 @@ export class ThordataClient {
     } = options;
 
     if (!url) {
-      throw new ThordataError("url is required for universalScrape");
+      throw new ThordataConfigError("url is required for universalScrape");
     }
 
-    const payload: Record<string, any> = {
+    const format = String(outputFormat).toLowerCase();
+
+    // Validate output format
+    if (format !== "html" && format !== "png") {
+      throw new ThordataConfigError(
+        `Invalid outputFormat: "${outputFormat}". Supported values: "html", "png"`,
+      );
+    }
+
+    const payload: Record<string, unknown> = {
       url,
       js_render: jsRender ? "True" : "False",
-      type: outputFormat.toLowerCase(),
+      type: format,
     };
 
     if (country) payload.country = country.toLowerCase();
@@ -204,8 +295,12 @@ export class ThordataClient {
     if (cleanContent) payload.clean_content = cleanContent;
     if (wait !== undefined) payload.wait = String(wait);
     if (waitFor) payload.wait_for = waitFor;
-    if (customHeaders && customHeaders.length > 0) payload.headers = JSON.stringify(customHeaders);
-    if (cookies && cookies.length > 0) payload.cookies = JSON.stringify(cookies);
+    if (customHeaders && customHeaders.length > 0) {
+      payload.headers = JSON.stringify(customHeaders);
+    }
+    if (cookies && cookies.length > 0) {
+      payload.cookies = JSON.stringify(cookies);
+    }
 
     Object.assign(payload, extra);
 
@@ -214,25 +309,25 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.post(this.universalUrl, toFormBody(payload), {
         headers,
-        responseType: outputFormat.toLowerCase() === "png" ? "arraybuffer" : "json",
+        responseType: format === "png" ? "arraybuffer" : "json",
       });
 
-      if (outputFormat.toLowerCase() === "png") {
+      if (format === "png") {
         return Buffer.from(res.data);
       }
 
       const data = safeParseJson(res.data);
 
-      if (data && typeof data === "object" && "code" in data && data.code !== 200) {
-        raiseForCode("Universal API error", data, res.status);
+      if (data && typeof data === "object" && "code" in data) {
+        const dataObj = data as Record<string, unknown>;
+        if (dataObj.code !== 200) {
+          raiseForCode("Universal API error", dataObj, res.status);
+        }
       }
 
-      if (outputFormat.toLowerCase() === "json") {
-        return data;
-      }
-
+      // Return HTML string
       if (data && typeof data === "object" && "html" in data) {
-        return (data as any).html as string;
+        return (data as Record<string, unknown>).html as string;
       }
 
       return typeof data === "string" ? data : JSON.stringify(data);
@@ -243,6 +338,9 @@ export class ThordataClient {
   // 3) Web Scraper API
   // --------------------------
 
+  /**
+   * Create a new Web Scraper task.
+   */
   async createScraperTask(options: ScraperTaskOptions): Promise<string> {
     const {
       fileName,
@@ -253,7 +351,7 @@ export class ThordataClient {
       includeErrors = true,
     } = options;
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       file_name: fileName,
       spider_id: spiderId,
       spider_name: spiderName,
@@ -270,7 +368,7 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.post(this.scraperBuilderUrl, toFormBody(payload), { headers });
 
-      const data = safeParseJson(res.data);
+      const data = safeParseJson(res.data) as Record<string, unknown>;
       if (!data || typeof data !== "object") {
         throw new ThordataError("Invalid response from Scraper Builder API");
       }
@@ -279,7 +377,7 @@ export class ThordataClient {
         raiseForCode("Task creation failed", data, res.status);
       }
 
-      const taskId = data?.data?.task_id;
+      const taskId = (data?.data as Record<string, unknown>)?.task_id;
       if (!taskId) {
         throw new ThordataError("Task ID missing in response");
       }
@@ -287,14 +385,20 @@ export class ThordataClient {
     });
   }
 
+  /**
+   * Verify that public credentials are available.
+   */
   private requirePublicCreds(): void {
     if (!this.publicToken || !this.publicKey) {
-      throw new ThordataError(
+      throw new ThordataConfigError(
         "publicToken and publicKey are required for Web Scraper public API calls",
       );
     }
   }
 
+  /**
+   * Get the status of a Web Scraper task.
+   */
   async getTaskStatus(taskId: string): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
@@ -303,11 +407,11 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.post(this.scraperStatusUrl, toFormBody(payload), { headers });
 
-      const data = safeParseJson(res.data);
+      const data = safeParseJson(res.data) as Record<string, unknown>;
       if (data?.code === 200 && Array.isArray(data.data)) {
         for (const item of data.data) {
           if (String(item.task_id) === String(taskId)) {
-            return item.status ?? TaskStatus.UNKNOWN;
+            return (item.status as string) ?? TaskStatus.UNKNOWN;
           }
         }
       }
@@ -315,6 +419,9 @@ export class ThordataClient {
     });
   }
 
+  /**
+   * Get the download URL for a completed task's results.
+   */
   async getTaskResult(taskId: string, fileType: "json" | "csv" | "xlsx" = "json"): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
@@ -323,16 +430,19 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.post(this.scraperDownloadUrl, toFormBody(payload), { headers });
 
-      const data = safeParseJson(res.data);
-      if (data?.code === 200 && data?.data?.download) {
-        return data.data.download as string;
+      const data = safeParseJson(res.data) as Record<string, unknown>;
+      const dataObj = data?.data as Record<string, unknown>;
+      if (data?.code === 200 && dataObj?.download) {
+        return dataObj.download as string;
       }
 
       raiseForCode("Get task result failed", data, res.status);
-      return ""; // unreachable
     });
   }
 
+  /**
+   * Wait for a task to complete.
+   */
   async waitForTask(taskId: string, options: WaitForTaskOptions = {}): Promise<string> {
     const pollIntervalMs = options.pollIntervalMs ?? 5000;
     const maxWaitMs = options.maxWaitMs ?? 10 * 60 * 1000;
@@ -368,22 +478,26 @@ export class ThordataClient {
   // 4) Proxy Network
   // --------------------------
 
+  /**
+   * Make an HTTP request through a proxy.
+   */
   async request(
     url: string,
-    config: { proxy?: Proxy; timeout?: number; [key: string]: any } = {},
-  ): Promise<any> {
+    config: { proxy?: Proxy; timeout?: number; [key: string]: unknown } = {},
+  ): Promise<unknown> {
     if (!url) {
-      throw new ThordataError("url is required for request");
+      throw new ThordataConfigError("url is required for request");
     }
 
-    const axiosConfig: any = {
-      ...config,
-      timeout: config.timeout ?? this.timeoutMs,
-      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+    const { proxy, timeout, ...rest } = config;
+
+    const axiosConfig: Record<string, unknown> = {
+      ...rest,
+      timeout: timeout ?? this.timeoutMs,
     };
 
-    if (config.proxy instanceof Proxy) {
-      axiosConfig.proxy = config.proxy.toAxiosConfig();
+    if (proxy instanceof Proxy) {
+      axiosConfig.proxy = proxy.toAxiosConfig();
     }
 
     return this.execute(async () => {
@@ -402,7 +516,7 @@ export class ThordataClient {
   private async getLocations(
     endpoint: string,
     params: Record<string, string | number> = {},
-  ): Promise<any[]> {
+  ): Promise<unknown[]> {
     this.requirePublicCreds();
 
     const queryParams = new URLSearchParams({
@@ -415,7 +529,7 @@ export class ThordataClient {
 
     return this.execute(async () => {
       const res = await this.http.get(url);
-      const data = safeParseJson(res.data);
+      const data = safeParseJson(res.data) as Record<string, unknown>;
 
       if (data?.code === 200 && Array.isArray(data.data)) {
         return data.data;
@@ -425,56 +539,59 @@ export class ThordataClient {
       }
 
       raiseForCode(`Location API (${endpoint}) failed`, data, res.status);
-      return [];
     });
   }
 
   /**
    * List all supported countries for a proxy type.
-   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
    */
-  async listCountries(proxyType: number = 1): Promise<any[]> {
-    return this.getLocations("countries", { proxy_type: proxyType });
+  async listCountries(proxyType: ProxyTypeParam = "residential"): Promise<CountryInfo[]> {
+    return this.getLocations("countries", {
+      proxy_type: normalizeProxyType(proxyType),
+    }) as Promise<CountryInfo[]>;
   }
 
   /**
    * List states/regions for a country.
-   * @param countryCode - Country code (e.g., "US")
-   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
    */
-  async listStates(countryCode: string, proxyType: number = 1): Promise<any[]> {
+  async listStates(
+    countryCode: string,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<StateInfo[]> {
     return this.getLocations("states", {
-      proxy_type: proxyType,
+      proxy_type: normalizeProxyType(proxyType),
       country_code: countryCode.toUpperCase(),
-    });
+    }) as Promise<StateInfo[]>;
   }
 
   /**
    * List cities for a country (and optionally state).
-   * @param countryCode - Country code (e.g., "US")
-   * @param stateCode - Optional state code (e.g., "california")
-   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
    */
-  async listCities(countryCode: string, stateCode?: string, proxyType: number = 1): Promise<any[]> {
+  async listCities(
+    countryCode: string,
+    stateCode?: string,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<CityInfo[]> {
     const params: Record<string, string | number> = {
-      proxy_type: proxyType,
+      proxy_type: normalizeProxyType(proxyType),
       country_code: countryCode.toUpperCase(),
     };
     if (stateCode) {
       params.state_code = stateCode.toLowerCase();
     }
-    return this.getLocations("cities", params);
+    return this.getLocations("cities", params) as Promise<CityInfo[]>;
   }
 
   /**
    * List ASNs for a country.
-   * @param countryCode - Country code (e.g., "US")
-   * @param proxyType - 1 for residential, 2 for unlimited (default: 1)
    */
-  async listAsns(countryCode: string, proxyType: number = 1): Promise<any[]> {
+  async listAsns(
+    countryCode: string,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<AsnInfo[]> {
     return this.getLocations("asn", {
-      proxy_type: proxyType,
+      proxy_type: normalizeProxyType(proxyType),
       country_code: countryCode.toUpperCase(),
-    });
+    }) as Promise<AsnInfo[]>;
   }
 }

@@ -1,9 +1,4 @@
-/**
- * SERP Google News Demo
- *
- * Usage:
- *   npx ts-node examples/serp_google_news.ts
- */
+// examples/serp_google_news.ts
 
 import "dotenv/config";
 import { ThordataClient, Engine } from "../src/index.js";
@@ -31,8 +26,9 @@ async function main() {
       num: 5,
     });
     printNewsResults(results);
-  } catch (e: any) {
-    console.error("❌ Search failed:", e.message);
+  } catch (e) {
+    const error = e as Error;
+    console.error("❌ Search failed:", error.message);
   }
 
   // 2. Advanced News Filters
@@ -44,20 +40,29 @@ async function main() {
       country: "us",
       language: "en",
       num: 5,
-      so: 1, // Sort by date
+      so: 1,
     });
     printNewsResults(results);
-  } catch (e: any) {
-    console.error("❌ Advanced search failed:", e.message);
+  } catch (e) {
+    const error = e as Error;
+    console.error("❌ Advanced search failed:", error.message);
   }
 }
 
-function printNewsResults(results: any) {
-  const news = results?.news ?? [];
+interface NewsItem {
+  rank?: number;
+  source?: string;
+  title?: string;
+  date?: string;
+  link?: string;
+}
+
+function printNewsResults(results: Record<string, unknown>) {
+  const news = (results?.news ?? []) as NewsItem[];
 
   console.log(`✅ Found ${news.length} news items:`);
 
-  news.slice(0, 5).forEach((item: any) => {
+  news.slice(0, 5).forEach((item) => {
     console.log(`   ${item.rank}. [${item.source}] ${item.title}`);
     console.log(`      📅 ${item.date}`);
     console.log(`      🔗 ${item.link}`);

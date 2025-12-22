@@ -1,6 +1,11 @@
 // examples/proxy_datacenter.ts
+
 import "dotenv/config";
 import { Thordata } from "../src/thordata.js";
+
+interface HttpBinResponse {
+  origin: string;
+}
 
 async function main() {
   if (!process.env.THORDATA_DATACENTER_USERNAME || !process.env.THORDATA_DATACENTER_PASSWORD) {
@@ -15,7 +20,7 @@ async function main() {
   console.log("Datacenter Proxy Demo\n");
 
   const proxy = Thordata.Proxy.datacenterFromEnv();
-  const result = await client.request(testUrl, { proxy });
+  const result = (await client.request(testUrl, { proxy })) as HttpBinResponse;
   console.log("Datacenter IP:", result.origin);
 }
 
