@@ -40,7 +40,7 @@ npm run build
 Set environment variables:
 
 ```bash
-export THORDATA_TOKEN=your_scraper_token
+export THORDATA_SCRAPER_TOKEN=your_scraper_token
 export THORDATA_PUBLIC_TOKEN=your_public_token
 export THORDATA_PUBLIC_KEY=your_public_key
 ```
@@ -48,7 +48,7 @@ export THORDATA_PUBLIC_KEY=your_public_key
 Or create a `.env` file:
 
 ```env
-THORDATA_TOKEN=your_scraper_token
+THORDATA_SCRAPER_TOKEN=your_scraper_token
 THORDATA_PUBLIC_TOKEN=your_public_token
 THORDATA_PUBLIC_KEY=your_public_key
 ```
@@ -63,7 +63,7 @@ Create a client:
 import { ThordataClient } from "thordata-js-sdk";
 
 const client = new ThordataClient({
-  scraperToken: process.env.THORDATA_TOKEN!,
+  scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
   publicToken: process.env.THORDATA_PUBLIC_TOKEN,
   publicKey: process.env.THORDATA_PUBLIC_KEY,
 });
@@ -114,7 +114,7 @@ For Google verticals, use dedicated engines for best results:
 ```typescript
 import { ThordataClient, Engine } from "thordata-js-sdk";
 
-const client = new ThordataClient({ scraperToken: process.env.THORDATA_TOKEN! });
+const client = new ThordataClient({ scraperToken: process.env.THORDATA_SCRAPER_TOKEN! });
 
 const data = await client.serpSearch({
   query: "Thordata proxy network",
@@ -360,7 +360,7 @@ Requires `THORDATA_PUBLIC_TOKEN` and `THORDATA_PUBLIC_KEY`.
 
 ```typescript
 const client = new ThordataClient({
-  scraperToken: process.env.THORDATA_TOKEN!,
+  scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
   publicToken: process.env.THORDATA_PUBLIC_TOKEN,
   publicKey: process.env.THORDATA_PUBLIC_KEY,
 });
@@ -443,7 +443,7 @@ try {
 
 ```typescript
 const client = new ThordataClient({
-  scraperToken: process.env.THORDATA_TOKEN!,
+  scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
   verifySsl: false, // Only for testing with self-signed certs
 });
 ```
@@ -452,7 +452,7 @@ const client = new ThordataClient({
 
 ```typescript
 const client = new ThordataClient({
-  scraperToken: process.env.THORDATA_TOKEN!,
+  scraperToken: process.env.THORDATA_SCRAPER_TOKEN!,
   maxRetries: 3, // Retry up to 3 times on transient failures
   timeoutMs: 60000, // 60 second timeout
 });
@@ -488,11 +488,28 @@ npm run lint
 npm run format
 ```
 
+### Git submodules
+
+This repository uses a git submodule (`sdk-spec`) for cross-SDK parity checks.
+
+After cloning, run:
+
+```bash
+git submodule update --init --recursive
+```
+
+Or clone with:
+
+```bash
+git clone --recurse-submodules <repo-url>
+```
+
 ### Run Examples
 
 ```bash
 node dist/examples/basic_serp.js
 node dist/examples/basic_universal.js
+......
 ```
 
 ---

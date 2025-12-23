@@ -193,8 +193,20 @@ export class ThordataClient {
     if (language) payload.hl = language.toLowerCase();
 
     // tbm parameter (only for specific Google engines)
+    const TBM_MAP: Record<string, string> = {
+      images: "isch",
+      shopping: "shop",
+      news: "nws",
+      videos: "vid",
+      isch: "isch",
+      shop: "shop",
+      nws: "nws",
+      vid: "vid",
+    };
+
     if (searchType) {
-      payload.tbm = searchType.toLowerCase();
+      const st = String(searchType).toLowerCase();
+      payload.tbm = TBM_MAP[st] ?? st;
     }
 
     if (device) payload.device = device.toLowerCase();

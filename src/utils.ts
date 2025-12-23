@@ -84,7 +84,12 @@ export function raiseForCode(message: string, payload: unknown, statusCode?: num
   const payloadObj = payload as Record<string, unknown> | null;
   const apiCode = typeof payloadObj?.code === "number" ? payloadObj.code : undefined;
   const errMsg = (payloadObj?.msg || payloadObj?.message || message) as string;
-  const effective = apiCode ?? statusCode;
+  const effective =
+    apiCode !== undefined && apiCode !== 200
+      ? apiCode
+      : statusCode !== undefined && statusCode !== 200
+        ? statusCode
+        : (apiCode ?? statusCode);
 
   // Extract retryAfter if present
   const retryAfter =
