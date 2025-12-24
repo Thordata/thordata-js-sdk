@@ -18,6 +18,7 @@ import { ThordataError, ThordataTimeoutError, ThordataConfigError } from "./erro
 import {
   buildAuthHeaders,
   buildPublicHeaders,
+  buildBuilderHeaders,
   handleAxiosError,
   toFormBody,
   raiseForCode,
@@ -215,7 +216,7 @@ export class ThordataClient {
 
     Object.assign(payload, extra);
 
-    const headers = buildAuthHeaders(this.scraperToken);
+    const headers = buildBuilderHeaders(this.scraperToken, this.publicToken, this.publicKey);
 
     return this.execute(async () => {
       const res = await this.http.post(this.serpUrl, toFormBody(payload), {
