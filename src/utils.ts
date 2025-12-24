@@ -20,24 +20,54 @@ export function buildUserAgent(version: string): string {
   return `thordata-js-sdk/${version} (node ${process.versions.node}; ${process.platform})`;
 }
 
-/**
- * Build authorization headers for SERP/Universal API.
- */
+// Scraper APIs (SERP/Universal) use the Account Settings token.
+// Interface docs require `token` header, while other docs/examples use `Authorization: Bearer ...`.
+// We send both for maximum compatibility.
 export function buildAuthHeaders(scraperToken: string): Record<string, string> {
+  if (!scraperToken) {
+    throw new Error("scraperToken is required");
+  }
+
   return {
+    token: scraperToken,
     Authorization: `Bearer ${scraperToken}`,
-    "Content-Type": "application/x-www-form-urlencoded",
   };
 }
 
-/**
- * Build authorization headers for Web Scraper Public API.
- */
+// Public APIs (tasks-status/tasks-download and other Public API endpoints) use My Account token/key.
 export function buildPublicHeaders(publicToken: string, publicKey: string): Record<string, string> {
+  if (!publicToken || !publicKey) {
+    throw new Error("publicToken and publicKey are required");
+  }
+
   return {
     token: publicToken,
     key: publicKey,
-    "Content-Type": "application/x-www-form-urlencoded",
+  };
+}
+
+// Web Scraper builder requires BOTH: public token/key + scraper Authorization (per interface docs).
+// For backward compatibility, if public credentials are missing we still return Authorization only.
+export function buildBuilderHeaders(
+  scraperToken: string,
+  publicToken?: string,
+  publicKey?: string,
+): Record<string, string> {
+  if (!scraperToken) {
+    throw new Error("scraperToken is required");
+  }
+
+  if (publicToken && publicKey) {
+    return {
+      token: publicToken,
+      key: publicKey,
+      Authorization: `Bearer ${scraperToken}`,
+    };
+  }
+
+  // Backward compatible fallback (some docs show only Authorization).
+  return {
+    Authorization: `Bearer ${scraperToken}`,
   };
 }
 
