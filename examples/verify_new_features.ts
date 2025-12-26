@@ -1,8 +1,7 @@
 // examples/verify_new_features.ts
 
 import "dotenv/config";
-import { ThordataClient, Engine } from "../src/index.js";
-import { CommonSettings } from "../src/models.js"; // 确保导出
+import { ThordataClient } from "../src/index.js";
 
 async function main() {
   const args = process.argv.slice(2);
