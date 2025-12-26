@@ -6,6 +6,7 @@ Official JavaScript/TypeScript SDK for Thordata APIs.
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Supports:
+
 - **SERP API** (Google / Bing / Yandex)
 - **Web Unlocker** (Universal API)
 - **Web Scraper API** (Text & Video Tasks)
@@ -43,7 +44,7 @@ const client = new Thordata(); // Reads from env vars
 const results = await client.serpSearch({
   query: "Thordata SDK",
   engine: "google",
-  country: "us"
+  country: "us",
 });
 console.log(results.organic?.[0]?.link);
 ```
@@ -58,7 +59,7 @@ console.log(results.organic?.[0]?.link);
 const news = await client.serpSearch({
   query: "AI News",
   engine: "google_news",
-  num: 10
+  num: 10,
 });
 ```
 
@@ -68,7 +69,7 @@ const news = await client.serpSearch({
 const html = await client.universalScrape({
   url: "https://example.com",
   jsRender: true,
-  waitFor: ".content"
+  waitFor: ".content",
 });
 ```
 
@@ -80,7 +81,7 @@ const taskId = await client.createScraperTask({
   fileName: "task1",
   spiderId: "universal",
   spiderName: "universal",
-  parameters: { url: "https://example.com" }
+  parameters: { url: "https://example.com" },
 });
 
 // Video Task (New)
@@ -89,7 +90,7 @@ const vidId = await client.createVideoTask({
   spiderId: "youtube_video_by-url",
   spiderName: "youtube.com",
   parameters: { url: "..." },
-  commonSettings: { resolution: "1080p" }
+  commonSettings: { resolution: "1080p" },
 });
 
 // Wait & Result
