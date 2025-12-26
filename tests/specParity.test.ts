@@ -1,3 +1,5 @@
+// tests/specParity.test.ts
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "vitest";
@@ -14,7 +16,7 @@ test("spec proxy ports match JS enums", () => {
   const spec = loadSpec();
   const products = spec.proxy.products;
 
-  expect(ProxyPort.DEFAULT).toBe(Number(products.residential.port));
+  expect(ProxyPort.RESIDENTIAL).toBe(Number(products.residential.port));
   expect(ProxyPort.MOBILE).toBe(Number(products.mobile.port));
   expect(ProxyPort.DATACENTER).toBe(Number(products.datacenter.port));
   expect(ProxyPort.ISP).toBe(Number(products.isp.port));
@@ -36,12 +38,13 @@ test("spec must include auth rules", () => {
   expect(typeof spec.auth).toBe("object");
 });
 
-test("auth: SERP/Universal use scraper token in `token` header (and Authorization bearer for compatibility)", () => {
+// 新结构测试
+test("auth: SERP/Universal auth requirements", () => {
   const spec = loadSpec();
 
-  // Spec contract checks (keep these strict to avoid spec drift)
-  expect(spec.auth.serp.headers.token).toBe("scraperToken");
-  expect(spec.auth.universal.headers.token).toBe("scraperToken");
+  // 检查新的 auth 结构
+  expect(spec.auth.apiAuth.serp.required).toContain("scraperToken");
+  expect(spec.auth.apiAuth.universal.required).toContain("scraperToken");
 
   // SDK behavior checks
   const h = buildAuthHeaders("SCRAPER_TOKEN");
@@ -49,12 +52,13 @@ test("auth: SERP/Universal use scraper token in `token` header (and Authorizatio
   expect(h.Authorization).toBe("Bearer SCRAPER_TOKEN");
 });
 
-test("auth: Web Scraper builder must include public token/key + scraper Authorization", () => {
+test("auth: Web Scraper builder auth requirements", () => {
   const spec = loadSpec();
 
-  expect(spec.auth.webScraper.builder.headers.token).toBe("publicToken");
-  expect(spec.auth.webScraper.builder.headers.key).toBe("publicKey");
-  expect(spec.auth.webScraper.builder.headers.AuthorizationBearer).toBe("scraperToken");
+  // 检查新的 auth 结构
+  expect(spec.auth.apiAuth.builder.required).toContain("scraperToken");
+  expect(spec.auth.apiAuth.builder.required).toContain("publicToken");
+  expect(spec.auth.apiAuth.builder.required).toContain("publicKey");
 
   const h = buildBuilderHeaders("SCRAPER_TOKEN", "PUBLIC_TOKEN", "PUBLIC_KEY");
   expect(h.token).toBe("PUBLIC_TOKEN");
@@ -62,11 +66,12 @@ test("auth: Web Scraper builder must include public token/key + scraper Authoriz
   expect(h.Authorization).toBe("Bearer SCRAPER_TOKEN");
 });
 
-test("auth: Web Scraper public endpoints use public token/key", () => {
+test("auth: Web Scraper public endpoints auth requirements", () => {
   const spec = loadSpec();
 
-  expect(spec.auth.webScraper.status.headers.token).toBe("publicToken");
-  expect(spec.auth.webScraper.status.headers.key).toBe("publicKey");
+  // 检查新的 auth 结构
+  expect(spec.auth.apiAuth.tasksStatus.required).toContain("publicToken");
+  expect(spec.auth.apiAuth.tasksStatus.required).toContain("publicKey");
 
   const h = buildPublicHeaders("PUBLIC_TOKEN", "PUBLIC_KEY");
   expect(h.token).toBe("PUBLIC_TOKEN");

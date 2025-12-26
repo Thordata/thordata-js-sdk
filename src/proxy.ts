@@ -26,7 +26,7 @@ export interface ProxyOptions {
 }
 
 const PROXY_PORTS: Record<ProxyProduct, number> = {
-  residential: ProxyPort.DEFAULT,
+  residential: ProxyPort.RESIDENTIAL,
   datacenter: ProxyPort.DATACENTER,
   mobile: ProxyPort.MOBILE,
   isp: ProxyPort.ISP,

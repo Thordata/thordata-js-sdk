@@ -13,6 +13,10 @@ import {
   StateInfo,
   CityInfo,
   AsnInfo,
+  VideoTaskOptions,
+  UsageStatistics,
+  ProxyUserList,
+  ProxyServer,
 } from "./models.js";
 import { ThordataError, ThordataTimeoutError, ThordataConfigError } from "./errors.js";
 import {
@@ -40,6 +44,10 @@ export interface ThordataClientConfig {
   /** Public key for Web Scraper API and Location API */
   publicKey?: string;
   /** Request timeout in milliseconds (default: 30000) */
+  sign?: string;
+  /** Sign for Public API NEW (optional, falls back to publicToken) */
+  apiKey?: string;
+  /** API Key for Public API NEW (optional, falls back to publicKey) */
   timeoutMs?: number;
   /** Maximum number of retries on failure (default: 0) */
   maxRetries?: number;
@@ -71,6 +79,10 @@ export class ThordataClient {
   private scraperToken: string;
   private publicToken?: string;
   private publicKey?: string;
+  private sign?: string;
+  private apiKey?: string;
+  private gatewayBaseUrl: string;
+
   private timeoutMs: number;
   private maxRetries: number;
   private http: AxiosInstance;
@@ -82,6 +94,14 @@ export class ThordataClient {
   private scraperBuilderUrl: string;
   private scraperStatusUrl: string;
   private scraperDownloadUrl: string;
+  private videoBuilderUrl: string;
+
+  private usageStatsUrl: string;
+  private proxyUsersUrl: string;
+  private whitelistUrl: string;
+  private proxyListUrl: string;
+  private proxyExpirationUrl: string;
+  private taskListUrl: string;
 
   constructor(config: ThordataClientConfig) {
     if (!config.scraperToken) {
@@ -108,11 +128,31 @@ export class ThordataClient {
     this.universalUrl = `${this.baseUrls.universalapiBaseUrl}/request`;
     this.scraperStatusUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-status`;
     this.scraperDownloadUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-download`;
+    this.videoBuilderUrl = `${this.baseUrls.scraperapiBaseUrl}/video_builder`;
 
     const pkgVersion = (process.env.npm_package_version as string) || "0.0.0";
     this.userAgent = config.userAgent ?? buildUserAgent(pkgVersion);
 
     this.http.defaults.headers.common["User-Agent"] = this.userAgent;
+
+    // Locations base URL is actually "https://openapi.thordata.com/api/locations"
+    // We need "https://openapi.thordata.com/api" for other endpoints
+    const apiBase = this.baseUrls.locationsBaseUrl.replace(/\/locations$/, "");
+    const whitelistBase = process.env.THORDATA_WHITELIST_BASE_URL || "https://api.thordata.com/api";
+    const proxyApiBase = process.env.THORDATA_PROXY_API_BASE_URL || "https://api.thordata.com/api";
+
+    this.usageStatsUrl = `${apiBase}/account/usage-statistics`;
+    this.proxyUsersUrl = `${apiBase}/proxy-users`;
+    this.whitelistUrl = `${whitelistBase}/whitelisted-ips`;
+    this.proxyListUrl = `${proxyApiBase}/proxy/proxy-list`;
+    this.proxyExpirationUrl = `${apiBase}/proxy/expiration-time`;
+    this.taskListUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-list`;
+
+    this.sign = config.sign || process.env.THORDATA_SIGN || this.publicToken;
+    this.apiKey = config.apiKey || process.env.THORDATA_API_KEY || this.publicKey;
+
+    this.gatewayBaseUrl =
+      process.env.THORDATA_GATEWAY_BASE_URL || "https://api.thordata.com/api/gateway";
   }
 
   /**
@@ -454,6 +494,50 @@ export class ThordataClient {
   }
 
   /**
+   * Create a YouTube video/audio download task.
+   */
+  async createVideoTask(options: VideoTaskOptions): Promise<string> {
+    const {
+      fileName,
+      spiderId,
+      spiderName,
+      parameters,
+      commonSettings,
+      includeErrors = true,
+    } = options;
+
+    const payload: Record<string, unknown> = {
+      file_name: fileName,
+      spider_id: spiderId,
+      spider_name: spiderName,
+      spider_parameters: JSON.stringify([parameters]),
+      spider_errors: includeErrors ? "true" : "false",
+      common_settings: JSON.stringify(commonSettings),
+    };
+
+    const headers = buildBuilderHeaders(this.scraperToken, this.publicToken, this.publicKey);
+
+    return this.execute(async () => {
+      const res = await this.http.post(this.videoBuilderUrl, toFormBody(payload), { headers });
+
+      const data = safeParseJson(res.data) as Record<string, unknown>;
+      if (!data || typeof data !== "object") {
+        throw new ThordataError("Invalid response from Video Builder API");
+      }
+
+      if ("code" in data && data.code !== 200) {
+        raiseForCode("Video task creation failed", data, res.status);
+      }
+
+      const taskId = (data?.data as Record<string, unknown>)?.task_id;
+      if (!taskId) {
+        throw new ThordataError("Task ID missing in response");
+      }
+      return String(taskId);
+    });
+  }
+
+  /**
    * Wait for a task to complete.
    */
   async waitForTask(taskId: string, options: WaitForTaskOptions = {}): Promise<string> {
@@ -516,6 +600,172 @@ export class ThordataClient {
     return this.execute(async () => {
       const res = await this.http.get(url, axiosConfig);
       return res.data;
+    });
+  }
+
+  // --- Task List ---
+
+  async listTasks(page = 1, size = 20): Promise<{ count: number; list: any[] }> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+    const payload = { page: String(page), size: String(size) };
+
+    return this.execute(async () => {
+      const res = await this.http.post(this.taskListUrl, toFormBody(payload), { headers });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("List tasks failed", data, res.status);
+      return data.data ?? { count: 0, list: [] };
+    });
+  }
+
+  // --- Usage Stats ---
+
+  async getUsageStatistics(fromDate: string, toDate: string): Promise<UsageStatistics> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      from_date: fromDate,
+      to_date: toDate,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(this.usageStatsUrl, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Usage stats failed", data, res.status);
+      return (data.data ?? data) as UsageStatistics;
+    });
+  }
+
+  // --- Proxy Users ---
+
+  async listProxyUsers(proxyType: ProxyTypeParam = "residential"): Promise<ProxyUserList> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: normalizeProxyType(proxyType),
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${this.proxyUsersUrl}/user-list`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("List proxy users failed", data, res.status);
+      return (data.data ?? data) as ProxyUserList;
+    });
+  }
+
+  async createProxyUser(
+    username: string,
+    pass: string,
+    trafficLimit = 0,
+    status = true,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<any> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+    const payload = {
+      username,
+      password: pass,
+      traffic_limit: String(trafficLimit),
+      status: status ? "true" : "false",
+      proxy_type: String(normalizeProxyType(proxyType)),
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.proxyUsersUrl}/create-user`, toFormBody(payload), {
+        headers,
+      });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Create proxy user failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  // --- Whitelist IP ---
+
+  async addWhitelistIp(
+    ip: string,
+    status = true,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<any> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+    const payload = {
+      ip,
+      status: status ? "true" : "false",
+      proxy_type: String(normalizeProxyType(proxyType)),
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.whitelistUrl}/add-ip`, toFormBody(payload), {
+        headers,
+      });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Add whitelist IP failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  // --- Proxy List ---
+
+  async listProxyServers(proxyType: 1 | 2): Promise<ProxyServer[]> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: proxyType,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(this.proxyListUrl, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("List proxy servers failed", data, res.status);
+      return (data.data ?? data.list ?? []) as ProxyServer[];
+    });
+  }
+
+  // Helper for API NEW headers
+  private buildSignHeaders(): Record<string, string> {
+    if (!this.sign || !this.apiKey) {
+      throw new ThordataConfigError("sign and apiKey are required for Public API NEW");
+    }
+    return {
+      sign: this.sign,
+      apiKey: this.apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    };
+  }
+
+  // --- Public API NEW Methods ---
+
+  async getResidentialBalance(): Promise<{ balance: number; expire_time: number }> {
+    const headers = this.buildSignHeaders();
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.gatewayBaseUrl}/getFlowBalance`, {}, { headers });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get balance failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  async getIspRegions(): Promise<any[]> {
+    const headers = this.buildSignHeaders();
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.gatewayBaseUrl}/getRegionIsp`, {}, { headers });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get ISP regions failed", data, res.status);
+      return data.data ?? [];
+    });
+  }
+
+  async listIspProxies(): Promise<any[]> {
+    const headers = this.buildSignHeaders();
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.gatewayBaseUrl}/queryListIsp`, {}, { headers });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("List ISP proxies failed", data, res.status);
+      return data.data ?? [];
     });
   }
 

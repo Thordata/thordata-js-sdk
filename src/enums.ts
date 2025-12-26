@@ -35,18 +35,16 @@ export enum ProxyHost {
   DEFAULT = "pr.thordata.net",
   NORTH_AMERICA = "t.na.thordata.net",
   EUROPE = "t.eu.thordata.net",
-  GATE = "gate.thordata.com",
 }
 
 /**
  * Available proxy gateway ports.
  */
 export enum ProxyPort {
-  DEFAULT = 9999,
+  RESIDENTIAL = 9999,
   MOBILE = 5555,
   DATACENTER = 7777,
   ISP = 6666,
-  ALTERNATIVE = 22225,
 }
 
 // =============================================================================

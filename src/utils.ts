@@ -57,12 +57,16 @@ export function buildBuilderHeaders(
     throw new Error("scraperToken is required");
   }
 
+  // always send Authorization
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${scraperToken}`,
+  };
+
   if (publicToken && publicKey) {
-    return {
-      token: publicToken,
-      key: publicKey,
-      Authorization: `Bearer ${scraperToken}`,
-    };
+    headers.token = publicToken;
+    headers.key = publicKey;
+
+    return headers;
   }
 
   // Backward compatible fallback (some docs show only Authorization).

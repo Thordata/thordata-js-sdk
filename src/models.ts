@@ -172,3 +172,68 @@ export interface AsnInfo {
   asn_code: string;
   asn_name: string;
 }
+
+/**
+ * Common settings for YouTube video/audio download.
+ */
+export interface CommonSettings {
+  /** Video resolution (360p/480p/720p/1080p/1440p/2160p) */
+  resolution?: string;
+  /** Audio format (opus/mp3) */
+  audio_format?: string;
+  /** Audio bitrate (48/64/128/160/256/320) */
+  bitrate?: string;
+  /** Whether to download subtitles ("true"/"false") */
+  is_subtitles?: string;
+  /** Subtitle language code */
+  subtitles_language?: string;
+}
+
+/**
+ * Options for creating a video download task.
+ */
+export interface VideoTaskOptions {
+  /** Output file name */
+  fileName: string;
+  /** Spider ID */
+  spiderId: string;
+  /** Spider name */
+  spiderName: string;
+  /** Spider parameters */
+  parameters: Record<string, unknown>;
+  /** Common settings for video/audio */
+  commonSettings: CommonSettings;
+  /** Include error records (default: true) */
+  includeErrors?: boolean;
+}
+
+export interface UsageStatistics {
+  total_usage_traffic: number;
+  traffic_balance: number;
+  query_days: number;
+  range_usage_traffic: number;
+  data: Array<Record<string, unknown>>;
+}
+
+export interface ProxyUser {
+  username: string;
+  status: boolean; // boolean in our model, API might return string/int
+  traffic_limit: number;
+  usage_traffic: number;
+}
+
+export interface ProxyUserList {
+  limit: number;
+  remaining_limit: number;
+  user_count: number;
+  list: ProxyUser[];
+}
+
+export interface ProxyServer {
+  ip: string;
+  port: number;
+  username: string;
+  password?: string;
+  expiration_time?: string | number;
+  region?: string;
+}
