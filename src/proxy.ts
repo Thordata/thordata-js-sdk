@@ -252,6 +252,41 @@ export class Proxy {
     return parts.join("-");
   }
 
+  toProxyUrl(): string {
+    // Resolve endpoint (allow Dashboard shard host via env)
+    const productUpper = this.product.toUpperCase();
+
+    const protocol =
+      process.env[`THORDATA_${productUpper}_PROXY_PROTOCOL`] ??
+      process.env.THORDATA_PROXY_PROTOCOL ??
+      "https";
+
+    const host =
+      process.env[`THORDATA_${productUpper}_PROXY_HOST`] ??
+      process.env.THORDATA_PROXY_HOST ??
+      this.customHost ??
+      PROXY_HOSTS[this.product];
+
+    const portRaw =
+      process.env[`THORDATA_${productUpper}_PROXY_PORT`] ??
+      process.env.THORDATA_PROXY_PORT ??
+      String(PROXY_PORTS[this.product]);
+
+    const port = Number(portRaw);
+
+    if (!host || !port) {
+      throw new Error(
+        "Proxy host/port is invalid. Set THORDATA_PROXY_HOST/PORT (or per-product overrides).",
+      );
+    }
+
+    // Username for Thordata proxy auth must include td-customer- prefix and geo/session segments
+    const username = encodeURIComponent(this.buildUsername());
+    const password = encodeURIComponent(this.credentials.password);
+
+    return `${protocol}://${username}:${password}@${host}:${port}`;
+  }
+
   /**
    * Generate axios proxy configuration.
    */

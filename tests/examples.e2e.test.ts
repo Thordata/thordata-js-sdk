@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { startMockServer } from "./mockServer";
+import { startMockServer } from "./mockServer.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -25,6 +25,9 @@ describe("examples e2e (offline)", () => {
       THORDATA_SCRAPER_TOKEN: "dummy",
       THORDATA_PUBLIC_TOKEN: "dummy_public",
       THORDATA_PUBLIC_KEY: "dummy_key",
+      THORDATA_TASK_SPIDER_NAME: "",
+      THORDATA_TASK_SPIDER_ID: "",
+      THORDATA_TASK_PARAMETERS_JSON: "{}",
       THORDATA_SCRAPERAPI_BASE_URL: baseUrl,
       THORDATA_UNIVERSALAPI_BASE_URL: baseUrl,
       THORDATA_WEB_SCRAPER_API_BASE_URL: baseUrl,

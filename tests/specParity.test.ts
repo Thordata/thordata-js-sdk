@@ -38,11 +38,9 @@ test("spec must include auth rules", () => {
   expect(typeof spec.auth).toBe("object");
 });
 
-// 新结构测试
 test("auth: SERP/Universal auth requirements", () => {
   const spec = loadSpec();
 
-  // 检查新的 auth 结构
   expect(spec.auth.apiAuth.serp.required).toContain("scraperToken");
   expect(spec.auth.apiAuth.universal.required).toContain("scraperToken");
 
@@ -55,7 +53,6 @@ test("auth: SERP/Universal auth requirements", () => {
 test("auth: Web Scraper builder auth requirements", () => {
   const spec = loadSpec();
 
-  // 检查新的 auth 结构
   expect(spec.auth.apiAuth.builder.required).toContain("scraperToken");
   expect(spec.auth.apiAuth.builder.required).toContain("publicToken");
   expect(spec.auth.apiAuth.builder.required).toContain("publicKey");
@@ -69,11 +66,18 @@ test("auth: Web Scraper builder auth requirements", () => {
 test("auth: Web Scraper public endpoints auth requirements", () => {
   const spec = loadSpec();
 
-  // 检查新的 auth 结构
+  // check new auth
   expect(spec.auth.apiAuth.tasksStatus.required).toContain("publicToken");
   expect(spec.auth.apiAuth.tasksStatus.required).toContain("publicKey");
 
   const h = buildPublicHeaders("PUBLIC_TOKEN", "PUBLIC_KEY");
   expect(h.token).toBe("PUBLIC_TOKEN");
   expect(h.key).toBe("PUBLIC_KEY");
+});
+
+test("spec: should not include sign/apiKey or publicApiNew", () => {
+  const spec = loadSpec();
+  expect(spec.publicApiNew).toBeUndefined();
+  expect(spec.auth?.credentials?.sign).toBeUndefined();
+  expect(spec.auth?.credentials?.apiKey).toBeUndefined();
 });

@@ -10,8 +10,6 @@ async function main() {
   const scraperToken = process.env.THORDATA_SCRAPER_TOKEN;
   const publicToken = process.env.THORDATA_PUBLIC_TOKEN;
   const publicKey = process.env.THORDATA_PUBLIC_KEY;
-  const sign = process.env.THORDATA_SIGN || publicToken;
-  const apiKey = process.env.THORDATA_API_KEY || publicKey;
 
   if (!scraperToken) {
     console.error("❌ THORDATA_SCRAPER_TOKEN required");
@@ -22,8 +20,6 @@ async function main() {
     scraperToken,
     publicToken,
     publicKey,
-    sign, // Public API NEW
-    apiKey, // Public API NEW
   });
 
   console.log("========================================");
@@ -88,34 +84,6 @@ async function main() {
         console.log(`✅ ISP Servers: ${servers.length}`);
         if (servers.length > 0) {
           console.log(`   Server 1: ${servers[0].ip}:${servers[0].port}`);
-        }
-        return true;
-      } catch (e: any) {
-        console.log(`❌ Failed: ${e.message}`);
-        return false;
-      }
-    },
-
-    api_new_balance: async () => {
-      console.log("\n--- Testing: API NEW - Balance ---");
-      try {
-        const res = await client.getResidentialBalance();
-        console.log(`✅ Balance: ${(res.balance / 1024 ** 3).toFixed(2)} GB`);
-        return true;
-      } catch (e: any) {
-        console.log(`❌ Failed: ${e.message}`);
-        return false;
-      }
-    },
-
-    api_new_isp: async () => {
-      console.log("\n--- Testing: API NEW - ISP Regions ---");
-      try {
-        const regions = await client.getIspRegions();
-        console.log(`✅ Regions: ${regions.length}`);
-        if (regions.length > 0) {
-          const r = regions[0];
-          console.log(`   ${r.country}/${r.city}: ${r.num} IPs`);
         }
         return true;
       } catch (e: any) {

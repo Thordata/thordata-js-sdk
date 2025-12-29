@@ -1,5 +1,7 @@
 // src/client.ts
 
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { HttpProxyAgent } from "http-proxy-agent";
 import axios, { AxiosInstance } from "axios";
 import https from "node:https";
 import { Engine, TaskStatus } from "./enums.js";
@@ -39,26 +41,26 @@ import { Proxy } from "./proxy.js";
 export interface ThordataClientConfig {
   /** API token for SERP and Universal APIs */
   scraperToken: string;
+
   /** Public token for Web Scraper API and Location API */
   publicToken?: string;
+
   /** Public key for Web Scraper API and Location API */
   publicKey?: string;
+
   /** Request timeout in milliseconds (default: 30000) */
-  sign?: string;
-  /** Sign for Public API NEW (optional, falls back to publicToken) */
-  apiKey?: string;
-  /** API Key for Public API NEW (optional, falls back to publicKey) */
   timeoutMs?: number;
+
   /** Maximum number of retries on failure (default: 0) */
   maxRetries?: number;
+
   /** Custom base URLs for API endpoints */
   baseUrls?: Partial<ThordataBaseUrls>;
+
   /** Custom User-Agent string */
   userAgent?: string;
-  /**
-   * Whether to verify SSL certificates (default: true).
-   * Set to false only for testing with self-signed certificates.
-   */
+
+  /** Whether to verify SSL certificates (default: true). */
   verifySsl?: boolean;
 }
 
@@ -79,9 +81,6 @@ export class ThordataClient {
   private scraperToken: string;
   private publicToken?: string;
   private publicKey?: string;
-  private sign?: string;
-  private apiKey?: string;
-  private gatewayBaseUrl: string;
 
   private timeoutMs: number;
   private maxRetries: number;
@@ -147,12 +146,6 @@ export class ThordataClient {
     this.proxyListUrl = `${proxyApiBase}/proxy/proxy-list`;
     this.proxyExpirationUrl = `${apiBase}/proxy/expiration-time`;
     this.taskListUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-list`;
-
-    this.sign = config.sign || process.env.THORDATA_SIGN || this.publicToken;
-    this.apiKey = config.apiKey || process.env.THORDATA_API_KEY || this.publicKey;
-
-    this.gatewayBaseUrl =
-      process.env.THORDATA_GATEWAY_BASE_URL || "https://api.thordata.com/api/gateway";
   }
 
   /**
@@ -256,7 +249,7 @@ export class ThordataClient {
 
     Object.assign(payload, extra);
 
-    const headers = buildBuilderHeaders(this.scraperToken, this.publicToken, this.publicKey);
+    const headers = buildAuthHeaders(this.scraperToken);
 
     return this.execute(async () => {
       const res = await this.http.post(this.serpUrl, toFormBody(payload), {
@@ -395,6 +388,7 @@ export class ThordataClient {
    * Create a new Web Scraper task.
    */
   async createScraperTask(options: ScraperTaskOptions): Promise<string> {
+    this.requirePublicCreds();
     const {
       fileName,
       spiderId,
@@ -416,7 +410,7 @@ export class ThordataClient {
       payload.spider_universal = JSON.stringify(universalParams);
     }
 
-    const headers = buildAuthHeaders(this.scraperToken);
+    const headers = buildBuilderHeaders(this.scraperToken, this.publicToken, this.publicKey);
 
     return this.execute(async () => {
       const res = await this.http.post(this.scraperBuilderUrl, toFormBody(payload), { headers });
@@ -497,6 +491,7 @@ export class ThordataClient {
    * Create a YouTube video/audio download task.
    */
   async createVideoTask(options: VideoTaskOptions): Promise<string> {
+    this.requirePublicCreds();
     const {
       fileName,
       spiderId,
@@ -594,7 +589,17 @@ export class ThordataClient {
     };
 
     if (proxy instanceof Proxy) {
-      axiosConfig.proxy = proxy.toAxiosConfig();
+      const proxyUrl = proxy.toProxyUrl();
+
+      // Disable axios proxy logic & env proxy interference; use explicit agents
+      axiosConfig.proxy = false;
+
+      // IMPORTANT:
+      // - httpAgent is used for http:// targets
+      // - httpsAgent is used for https:// targets
+      // Both should point to a proxy agent that can CONNECT through the proxy.
+      axiosConfig.httpAgent = new HttpProxyAgent(proxyUrl);
+      axiosConfig.httpsAgent = new HttpsProxyAgent(proxyUrl);
     }
 
     return this.execute(async () => {
@@ -722,50 +727,6 @@ export class ThordataClient {
       const data = safeParseJson(res.data) as any;
       if (data?.code !== 200) raiseForCode("List proxy servers failed", data, res.status);
       return (data.data ?? data.list ?? []) as ProxyServer[];
-    });
-  }
-
-  // Helper for API NEW headers
-  private buildSignHeaders(): Record<string, string> {
-    if (!this.sign || !this.apiKey) {
-      throw new ThordataConfigError("sign and apiKey are required for Public API NEW");
-    }
-    return {
-      sign: this.sign,
-      apiKey: this.apiKey,
-      "Content-Type": "application/x-www-form-urlencoded",
-    };
-  }
-
-  // --- Public API NEW Methods ---
-
-  async getResidentialBalance(): Promise<{ balance: number; expire_time: number }> {
-    const headers = this.buildSignHeaders();
-    return this.execute(async () => {
-      const res = await this.http.post(`${this.gatewayBaseUrl}/getFlowBalance`, {}, { headers });
-      const data = safeParseJson(res.data) as any;
-      if (data?.code !== 200) raiseForCode("Get balance failed", data, res.status);
-      return data.data ?? {};
-    });
-  }
-
-  async getIspRegions(): Promise<any[]> {
-    const headers = this.buildSignHeaders();
-    return this.execute(async () => {
-      const res = await this.http.post(`${this.gatewayBaseUrl}/getRegionIsp`, {}, { headers });
-      const data = safeParseJson(res.data) as any;
-      if (data?.code !== 200) raiseForCode("Get ISP regions failed", data, res.status);
-      return data.data ?? [];
-    });
-  }
-
-  async listIspProxies(): Promise<any[]> {
-    const headers = this.buildSignHeaders();
-    return this.execute(async () => {
-      const res = await this.http.post(`${this.gatewayBaseUrl}/queryListIsp`, {}, { headers });
-      const data = safeParseJson(res.data) as any;
-      if (data?.code !== 200) raiseForCode("List ISP proxies failed", data, res.status);
-      return data.data ?? [];
     });
   }
 
