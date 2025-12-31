@@ -1,0 +1,14 @@
+{
+  "root": "D:\\thordata_work\\thordata-js-sdk",
+  "generated_at": "2025-12-31T10:05:37",
+  "fingerprint": "4fa206f5c68684cd3396b2484f26c625884ad875",
+  "chunk_bytes": 600000,
+  "max_single_file_bytes": 3000000,
+  "ignore_lock_files": true,
+  "bundle_count": 1,
+  "bundle_files": [
+    "bundle_0001.txt"
+  ],
+  "files_included": 65,
+  "build_seconds": 0.037
+}
