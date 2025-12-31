@@ -39,3 +39,4 @@ coverage/
 
 # Lock files (optional, some prefer to commit)
 # package-lock.json
+universal_output.html

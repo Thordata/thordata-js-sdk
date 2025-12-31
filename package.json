@@ -25,7 +25,14 @@
     "format:check": "prettier -c .",
     "prepack": "npm run build",
     "prepublishOnly": "npm run format:check && npm run lint && npm test",
-    "example:verify": "npm run build && node dist/examples/verify_new_features.js"
+    "example:verify": "npm run build && node dist/examples/verify_new_features.js",
+    "example:serp": "tsx examples/serp_basic.ts",
+    "example:universal": "tsx examples/universal_basic.ts",
+    "example:task": "tsx examples/basic_scraper_task.ts",
+    "example:proxy:residential": "tsx examples/proxy_residential.ts",
+    "example:proxy:mobile": "tsx examples/proxy_mobile.ts",
+    "example:proxy:datacenter": "tsx examples/proxy_datacenter.ts",
+    "example:proxy:isp": "tsx examples/proxy_isp.ts"
   },
   "keywords": [
     "thordata",

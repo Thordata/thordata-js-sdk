@@ -6,9 +6,7 @@
   "max_single_file_bytes": 3000000,
   "ignore_lock_files": true,
   "bundle_count": 1,
-  "bundle_files": [
-    "bundle_0001.txt"
-  ],
+  "bundle_files": ["bundle_0001.txt"],
   "files_included": 65,
   "build_seconds": 0.037
 }

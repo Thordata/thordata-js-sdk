@@ -2,6 +2,7 @@
 
 import { loadEnv, skipIfMissing, truncate } from "./internal/example.js";
 import { ThordataClient } from "../src/index.js";
+import fs from "node:fs";
 
 async function main() {
   loadEnv();
@@ -19,8 +20,11 @@ async function main() {
     js_render: false,
   });
 
-  const s = typeof out === "string" ? out : JSON.stringify(out);
-  console.log("preview:", truncate(s, 300));
+  const html = typeof out === "string" ? out : JSON.stringify(out, null, 2);
+  fs.writeFileSync("universal_output.html", html, "utf8");
+  console.log("saved: universal_output.html");
+  console.log("length:", html.length);
+  console.log("preview:", truncate(html, 300));
 }
 
 main().catch((e) => {

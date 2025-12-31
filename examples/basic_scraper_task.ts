@@ -31,7 +31,19 @@ async function main() {
 
   let parameters: any;
   try {
-    parameters = JSON.parse(parametersJson);
+    const raw = JSON.parse(parametersJson);
+
+    // Dashboard curl uses spider_parameters as an ARRAY string: [{...}]
+    // Accept both "{...}" and "[{...}]". SDK createScraperTask expects ONE parameter object.
+    if (Array.isArray(raw)) {
+      if (raw.length === 0) {
+        console.error("THORDATA_TASK_PARAMETERS_JSON must not be an empty array");
+        process.exit(1);
+      }
+      parameters = raw[0];
+    } else {
+      parameters = raw;
+    }
   } catch {
     console.error("THORDATA_TASK_PARAMETERS_JSON must be valid JSON");
     process.exit(1);
