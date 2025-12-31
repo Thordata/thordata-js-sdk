@@ -42,13 +42,13 @@ describe("examples e2e (offline)", () => {
     return { stdout, stderr };
   }
 
-  it("basic_serp", async () => {
-    const { stdout } = await runExample("dist/examples/basic_serp.js");
+  it("serp_basic", async () => {
+    const { stdout } = await runExample("dist/examples/serp_basic.js");
     expect(stdout.length).toBeGreaterThanOrEqual(0);
   });
 
-  it("basic_universal", async () => {
-    const { stdout } = await runExample("dist/examples/basic_universal.js");
+  it("universal_basic", async () => {
+    const { stdout } = await runExample("dist/examples/universal_basic.js");
     expect(stdout.length).toBeGreaterThanOrEqual(0);
   });
 
