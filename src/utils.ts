@@ -15,9 +15,13 @@ import {
 
 /**
  * Build User-Agent string for SDK requests.
+ * Format: thordata-js-sdk/{version} node/{node_ver} ({platform}/{arch})
  */
 export function buildUserAgent(version: string): string {
-  return `thordata-js-sdk/${version} (node ${process.versions.node}; ${process.platform})`;
+  const nodeVer = process.versions.node;
+  const platform = process.platform;
+  const arch = process.arch;
+  return `thordata-js-sdk/${version} node/${nodeVer} (${platform}/${arch})`;
 }
 
 // Scraper APIs (SERP/Universal) use the Account Settings token.
