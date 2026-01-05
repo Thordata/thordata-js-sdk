@@ -1,6 +1,5 @@
 // src/utils.ts
 
-import { AxiosError } from "axios";
 import {
   ThordataError,
   ThordataApiError,
@@ -166,36 +165,39 @@ export function raiseForCode(message: string, payload: unknown, statusCode?: num
  * Uniformly handle axios errors and convert to ThordataError.
  */
 export function handleAxiosError(e: unknown): never {
-  // Already a ThordataError, re-throw as-is
   if (e instanceof ThordataError) {
     throw e;
   }
 
-  if (e instanceof AxiosError) {
+  if (e && typeof e === 'object' && (e as any).isAxiosError) {
+    const ae = e as any; // Cast to any to avoid strict type checks on AxiosError imports if needed
+
     // Timeout
-    if (e.code === "ECONNABORTED") {
-      throw new ThordataTimeoutError(`Request timed out: ${e.message}`, e);
+    if (ae.code === "ECONNABORTED") {
+      throw new ThordataTimeoutError(`Request timed out: ${ae.message}`, ae);
     }
 
     // No response received (network error)
-    if (!e.response) {
-      throw new ThordataNetworkError(`Network error: ${e.message}`, e);
+    if (!ae.response) {
+      throw new ThordataNetworkError(`Network error: ${ae.message}`, ae);
     }
 
-    const status = e.response.status;
-    const data = e.response.data;
-
-    // Try to parse potential JSON string in data
+    const status = ae.response.status;
+    const data = ae.response.data;
     const parsedData = safeParseJson(data);
 
-    // If response contains API error code, use raiseForCode
-    if (parsedData && typeof parsedData === "object" && "code" in parsedData) {
-      raiseForCode(`API error: HTTP ${status}`, parsedData, status);
+    let detailMsg = "";
+    if (parsedData && typeof parsedData === 'object') {
+        const pd = parsedData as any;
+        if (pd.code && pd.code !== 200) {
+             raiseForCode(`API error: HTTP ${status}`, parsedData, status);
+        }
+        detailMsg = pd.msg || pd.message || pd.error || "";
     }
 
     // Default HTTP error
     throw new ThordataApiError(
-      `HTTP error: ${status} ${e.response.statusText}`,
+      `HTTP error: ${status} ${ae.response.statusText}${detailMsg ? " - " + detailMsg : ""}`,
       status,
       undefined,
       parsedData,

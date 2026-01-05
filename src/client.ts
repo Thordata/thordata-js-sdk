@@ -730,6 +730,25 @@ export class ThordataClient {
     });
   }
 
+  async getProxyExpiration(ips: string | string[], proxyType: 1 | 2): Promise<Record<string, unknown>> {
+    this.requirePublicCreds();
+    const ipStr = Array.isArray(ips) ? ips.join(",") : ips;
+    
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: proxyType,
+      ips: ipStr
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(this.proxyExpirationUrl, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get proxy expiration failed", data, res.status);
+      return data.data ?? data;
+    });
+  }
+
   // --------------------------
   // 5) Location API
   // --------------------------
