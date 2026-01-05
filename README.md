@@ -4,7 +4,7 @@
 
 **Official Node.js/TypeScript Client for Thordata APIs**
 
-*Proxy Network • SERP API • Web Unlocker • Web Scraper API*
+_Proxy Network • SERP API • Web Unlocker • Web Scraper API_
 
 [![npm version](https://img.shields.io/npm/v/thordata-js-sdk.svg)](https://www.npmjs.com/package/thordata-js-sdk)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -42,7 +42,7 @@ async function main() {
   const results = await client.serpSearch({
     query: "nodejs",
     engine: "google",
-    country: "us"
+    country: "us",
   });
   console.log(results.organic?.[0]?.title);
 }
@@ -60,13 +60,10 @@ Build proxy URLs for `axios`, `fetch`, `puppeteer`, etc.
 import { Thordata } from "thordata-js-sdk";
 
 // Create proxy config
-const proxy = Thordata.Proxy.residentialFromEnv()
-  .country("jp")
-  .city("tokyo")
-  .sticky(30); // 30 min session
+const proxy = Thordata.Proxy.residentialFromEnv().country("jp").city("tokyo").sticky(30); // 30 min session
 
 // Get URL string
-console.log(proxy.toProxyUrl()); 
+console.log(proxy.toProxyUrl());
 
 // Use with internal client
 const response = await client.request("https://httpbin.org/ip", { proxy });
@@ -83,7 +80,7 @@ const news = await client.serpSearch({
   engine: Engine.GOOGLE_NEWS,
   num: 20,
   country: "us",
-  language: "en"
+  language: "en",
 });
 ```
 
@@ -94,7 +91,7 @@ const html = await client.universalScrape({
   url: "https://example.com/spa",
   jsRender: true,
   waitFor: ".loaded-content",
-  blockResources: "image,media"
+  blockResources: "image,media",
 });
 ```
 
@@ -106,7 +103,7 @@ const taskId = await client.createScraperTask({
   fileName: "task_1",
   spiderId: "universal",
   spiderName: "universal",
-  parameters: { url: "https://example.com" }
+  parameters: { url: "https://example.com" },
 });
 
 // 2. Wait
