@@ -1,17 +1,15 @@
-# Thordata JS SDK (Node.js / TypeScript)
+# Thordata Node.js SDK
 
-Official JavaScript/TypeScript SDK for Thordata APIs.
+<div align="center">
+
+**Official Node.js/TypeScript Client for Thordata APIs**
+
+*Proxy Network • SERP API • Web Unlocker • Web Scraper API*
 
 [![npm version](https://img.shields.io/npm/v/thordata-js-sdk.svg)](https://www.npmjs.com/package/thordata-js-sdk)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Supports:
-
-- **SERP API** (Google / Bing / Yandex)
-- **Web Unlocker** (Universal API)
-- **Web Scraper API** (Text & Video Tasks)
-- **Proxy Network** (Residential / Datacenter / Mobile / ISP)
-- **Account Management** (Usage, Users, Whitelist)
+</div>
 
 ---
 
@@ -21,109 +19,148 @@ Supports:
 npm install thordata-js-sdk
 ```
 
----
-
 ## 🔐 Configuration
 
-```bash
-export THORDATA_SCRAPER_TOKEN=your_token
-export THORDATA_PUBLIC_TOKEN=your_public_token
-export THORDATA_PUBLIC_KEY=your_public_key
-```
+Set environment variables:
 
----
+```bash
+export THORDATA_SCRAPER_TOKEN="your_token"
+export THORDATA_PUBLIC_TOKEN="your_public_token"
+export THORDATA_PUBLIC_KEY="your_public_key"
+```
 
 ## 🚀 Quick Start
 
 ```typescript
 import { Thordata } from "thordata-js-sdk";
 
-const client = new Thordata(); // Reads from env vars
+// Initialize (reads from env vars)
+const client = new Thordata();
 
-// SERP Search
-const results = await client.serpSearch({
-  query: "Thordata SDK",
-  engine: "google",
-  country: "us",
-});
-console.log(results.organic?.[0]?.link);
+async function main() {
+  // SERP Search
+  const results = await client.serpSearch({
+    query: "nodejs",
+    engine: "google",
+    country: "us"
+  });
+  console.log(results.organic?.[0]?.title);
+}
+
+main();
 ```
 
----
+## 📚 Core Features
 
-## 📖 Features
+### 🌐 Proxy Network
 
-### SERP API
+Build proxy URLs for `axios`, `fetch`, `puppeteer`, etc.
 
 ```typescript
+import { Thordata } from "thordata-js-sdk";
+
+// Create proxy config
+const proxy = Thordata.Proxy.residentialFromEnv()
+  .country("jp")
+  .city("tokyo")
+  .sticky(30); // 30 min session
+
+// Get URL string
+console.log(proxy.toProxyUrl()); 
+
+// Use with internal client
+const response = await client.request("https://httpbin.org/ip", { proxy });
+console.log(response);
+```
+
+### 🔍 SERP API
+
+```typescript
+import { Engine } from "thordata-js-sdk";
+
 const news = await client.serpSearch({
-  query: "AI News",
-  engine: "google_news",
-  num: 10,
+  query: "SpaceX",
+  engine: Engine.GOOGLE_NEWS,
+  num: 20,
+  country: "us",
+  language: "en"
 });
 ```
 
-### Web Unlocker (Universal)
+### 🔓 Universal Scraping API (Web Unlocker)
 
 ```typescript
 const html = await client.universalScrape({
-  url: "https://example.com",
+  url: "https://example.com/spa",
   jsRender: true,
-  waitFor: ".content",
+  waitFor: ".loaded-content",
+  blockResources: "image,media"
 });
 ```
 
-### Web Scraper API (Async)
+### 🕷️ Web Scraper API (Tasks)
 
 ```typescript
-// Create Task
+// 1. Create Task
 const taskId = await client.createScraperTask({
-  fileName: "task1",
+  fileName: "task_1",
   spiderId: "universal",
   spiderName: "universal",
-  parameters: { url: "https://example.com" },
+  parameters: { url: "https://example.com" }
 });
 
-// Video Task (New)
-const vidId = await client.createVideoTask({
-  fileName: "video1",
-  spiderId: "youtube_video_by-url",
-  spiderName: "youtube.com",
-  parameters: { url: "..." },
-  commonSettings: { resolution: "1080p" },
-});
-
-// Wait & Result
+// 2. Wait
 const status = await client.waitForTask(taskId);
+
+// 3. Download
 if (status === "ready") {
   const url = await client.getTaskResult(taskId);
   console.log(url);
 }
 ```
 
-### Account Management
+### 📊 Account Management
 
 ```typescript
 // Usage Stats
 const stats = await client.getUsageStatistics("2024-01-01", "2024-01-31");
-console.log("Balance:", stats.traffic_balance);
 
-// Proxy Users
-const users = await client.listProxyUsers("residential");
-
-// Whitelist
+// Manage Whitelist
 await client.addWhitelistIp("1.2.3.4");
+
+// Check ISP Proxies
+const servers = await client.listProxyServers(1); // 1=ISP
 ```
 
-### Proxy Configuration
+## ⚙️ Advanced Usage
+
+### Error Handling
+
+The SDK throws typed errors for better control.
 
 ```typescript
-// Residential Proxy
-const proxy = Thordata.Proxy.residentialFromEnv().country("us");
-await client.request("https://httpbin.org/ip", { proxy });
+import { ThordataRateLimitError, ThordataAuthError } from "thordata-js-sdk";
+
+try {
+  await client.serpSearch({ ... });
+} catch (e) {
+  if (e instanceof ThordataRateLimitError) {
+    console.log(`Rate limited! Retry after ${e.retryAfter}s`);
+  } else if (e instanceof ThordataAuthError) {
+    console.log("Check your tokens!");
+  }
+}
 ```
 
----
+### Configuration Options
+
+```typescript
+const client = new ThordataClient({
+  scraperToken: "...",
+  timeoutMs: 60000,
+  maxRetries: 3, // Auto-retry on 429/5xx
+});
+```
 
 ## 📄 License
 

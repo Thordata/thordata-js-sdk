@@ -1,27 +1,14 @@
 # Changelog
 
-## [0.3.0] - 2025-12-22
+All notable changes to this project will be documented in this file.
 
-### Breaking Changes
-
-- Environment variable renamed: `THORDATA_TOKEN` -> `THORDATA_SCRAPER_TOKEN`
+## [1.0.1] - 2026-01-05
 
 ### Added
-
-- Complete Engine enum with all Google (22), Bing (7), Yandex (2), DuckDuckGo (2) engines
-- GoogleTbm enum for tbm parameter
-- Continent, Country, ProxyHost, ProxyPort enums
-- Location API with string parameter support
-- SSL verification option (verifySsl config)
-- Comprehensive JSDoc comments
+- **User-Agent Standardization**: Updated User-Agent to `thordata-js-sdk/{version} node/{ver} ({platform}/{arch})`.
+- **Proxy Expiration**: Added `getProxyExpiration` method to `ThordataClient`.
 
 ### Fixed
-
-- Remove self-referencing dependency in package.json
-- Move dotenv to devDependencies
-- Remove unused zod dependency
-- Fix OutputFormat to only support html/png
-
-## [0.2.0] - Previous release
-
-- Initial public release
+- **Type Safety**: Improved TypeScript definitions and removed `any` usage in critical paths.
+- **Error Handling**: Enhanced `handleAxiosError` to extract detailed error messages from API responses (404/500).
+- **Dependencies**: Moved `http-proxy-agent` and `https-proxy-agent` to `dependencies` for proper runtime proxy support.
