@@ -169,7 +169,7 @@ export function handleAxiosError(e: unknown): never {
     throw e;
   }
 
-  if (e && typeof e === 'object' && (e as any).isAxiosError) {
+  if (e && typeof e === "object" && (e as any).isAxiosError) {
     const ae = e as any; // Cast to any to avoid strict type checks on AxiosError imports if needed
 
     // Timeout
@@ -187,12 +187,12 @@ export function handleAxiosError(e: unknown): never {
     const parsedData = safeParseJson(data);
 
     let detailMsg = "";
-    if (parsedData && typeof parsedData === 'object') {
-        const pd = parsedData as any;
-        if (pd.code && pd.code !== 200) {
-             raiseForCode(`API error: HTTP ${status}`, parsedData, status);
-        }
-        detailMsg = pd.msg || pd.message || pd.error || "";
+    if (parsedData && typeof parsedData === "object") {
+      const pd = parsedData as any;
+      if (pd.code && pd.code !== 200) {
+        raiseForCode(`API error: HTTP ${status}`, parsedData, status);
+      }
+      detailMsg = pd.msg || pd.message || pd.error || "";
     }
 
     // Default HTTP error

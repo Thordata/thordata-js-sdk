@@ -730,15 +730,18 @@ export class ThordataClient {
     });
   }
 
-  async getProxyExpiration(ips: string | string[], proxyType: 1 | 2): Promise<Record<string, unknown>> {
+  async getProxyExpiration(
+    ips: string | string[],
+    proxyType: 1 | 2,
+  ): Promise<Record<string, unknown>> {
     this.requirePublicCreds();
     const ipStr = Array.isArray(ips) ? ips.join(",") : ips;
-    
+
     const params = {
       token: this.publicToken!,
       key: this.publicKey!,
       proxy_type: proxyType,
-      ips: ipStr
+      ips: ipStr,
     };
 
     return this.execute(async () => {
