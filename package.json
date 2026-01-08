@@ -51,7 +51,10 @@
   "author": "Thordata Developer Team",
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.7.0"
+    "axios": "^1.7.0",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -59,8 +62,6 @@
     "@vitest/coverage-v8": "^4.0.16",
     "dotenv": "^16.4.5",
     "eslint": "^9.39.2",
-    "http-proxy-agent": "^7.0.2",
-    "https-proxy-agent": "^7.0.6",
     "nock": "^14.0.10",
     "prettier": "^3.7.4",
     "ts-node": "^10.9.2",

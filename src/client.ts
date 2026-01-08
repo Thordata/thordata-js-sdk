@@ -2,6 +2,7 @@
 
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import axios, { AxiosInstance } from "axios";
 import https from "node:https";
 import { Engine, TaskStatus } from "./enums.js";
@@ -138,7 +139,8 @@ export class ThordataClient {
     // We need "https://openapi.thordata.com/api" for other endpoints
     const apiBase = this.baseUrls.locationsBaseUrl.replace(/\/locations$/, "");
     const whitelistBase = process.env.THORDATA_WHITELIST_BASE_URL || "https://api.thordata.com/api";
-    const proxyApiBase = process.env.THORDATA_PROXY_API_BASE_URL || "https://api.thordata.com/api";
+    const proxyApiBase =
+      process.env.THORDATA_PROXY_API_BASE_URL || "https://openapi.thordata.com/api";
 
     this.usageStatsUrl = `${apiBase}/account/usage-statistics`;
     this.proxyUsersUrl = `${apiBase}/proxy-users`;
@@ -594,12 +596,21 @@ export class ThordataClient {
       // Disable axios proxy logic & env proxy interference; use explicit agents
       axiosConfig.proxy = false;
 
-      // IMPORTANT:
-      // - httpAgent is used for http:// targets
-      // - httpsAgent is used for https:// targets
-      // Both should point to a proxy agent that can CONNECT through the proxy.
-      axiosConfig.httpAgent = new HttpProxyAgent(proxyUrl);
-      axiosConfig.httpsAgent = new HttpsProxyAgent(proxyUrl);
+      const scheme = new URL(proxyUrl).protocol; // "http:" | "https:" | "socks5:" | "socks5h:"
+
+      if (scheme.startsWith("socks")) {
+        const agent = new SocksProxyAgent(proxyUrl);
+        axiosConfig.httpAgent = agent;
+        axiosConfig.httpsAgent = agent;
+      } else if (scheme === "https:") {
+        const agent = new HttpsProxyAgent(proxyUrl);
+        axiosConfig.httpAgent = agent;
+        axiosConfig.httpsAgent = agent;
+      } else {
+        const agent = new HttpProxyAgent(proxyUrl);
+        axiosConfig.httpAgent = agent;
+        axiosConfig.httpsAgent = agent;
+      }
     }
 
     return this.execute(async () => {

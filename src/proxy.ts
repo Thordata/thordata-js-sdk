@@ -256,10 +256,24 @@ export class Proxy {
     // Resolve endpoint (allow Dashboard shard host via env)
     const productUpper = this.product.toUpperCase();
 
+    const envNonEmpty = (v?: string) => {
+      const s = (v ?? "").trim();
+      return s ? s : undefined;
+    };
+
     const protocol =
-      process.env[`THORDATA_${productUpper}_PROXY_PROTOCOL`] ??
-      process.env.THORDATA_PROXY_PROTOCOL ??
+      envNonEmpty(process.env[`THORDATA_${productUpper}_PROXY_PROTOCOL`]) ??
+      envNonEmpty(process.env.THORDATA_PROXY_PROTOCOL) ??
       "https";
+
+    const allowed = new Set(["http", "https", "socks5", "socks5h"]);
+    if (!allowed.has(protocol)) {
+      throw new Error(
+        `Invalid THORDATA_*_PROXY_PROTOCOL: ${protocol}. Use http/https/socks5/socks5h`,
+      );
+    }
+
+    const normalizedProtocol = protocol === "socks5" ? "socks5h" : protocol;
 
     const host =
       process.env[`THORDATA_${productUpper}_PROXY_HOST`] ??
@@ -284,7 +298,7 @@ export class Proxy {
     const username = encodeURIComponent(this.buildUsername());
     const password = encodeURIComponent(this.credentials.password);
 
-    return `${protocol}://${username}:${password}@${host}:${port}`;
+    return `${normalizedProtocol}://${username}:${password}@${host}:${port}`;
   }
 
   /**
