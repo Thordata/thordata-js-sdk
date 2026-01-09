@@ -65,7 +65,6 @@ describe("Proxy Integration Tests", () => {
         }
       }
 
-
       for (const protocol of protocols) {
         console.log(`\n--- Testing protocol: ${protocol} ---`);
 
