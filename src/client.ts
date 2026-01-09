@@ -1,5 +1,6 @@
 // src/client.ts
 
+import { SerpNamespace } from "./serp_engines.js";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -140,6 +141,8 @@ export class ThordataClient {
   private proxyExpirationUrl: string;
   private taskListUrl: string;
 
+  public serp: SerpNamespace;
+
   constructor(config: ThordataClientConfig) {
     if (!config.scraperToken) {
       throw new ThordataConfigError("scraperToken is required");
@@ -196,6 +199,7 @@ export class ThordataClient {
           `ensure your system proxy settings or use TUN mode in Clash/V2Ray.`,
       );
     }
+    this.serp = new SerpNamespace(this);
   }
 
   /**
