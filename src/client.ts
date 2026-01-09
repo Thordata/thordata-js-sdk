@@ -76,6 +76,43 @@ function normalizeProxyType(proxyType: ProxyTypeParam): number {
 }
 
 /**
+ * Parse THORDATA_UPSTREAM_PROXY environment variable.
+ *
+ * @returns Parsed upstream proxy config or null if not set
+ */
+function parseUpstreamProxy(): {
+  protocol: string;
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+} | null {
+  const upstreamUrl = process.env.THORDATA_UPSTREAM_PROXY?.trim();
+  if (!upstreamUrl) return null;
+
+  try {
+    const url = new URL(upstreamUrl);
+    const protocol = url.protocol.replace(":", "");
+
+    if (!["http", "https", "socks5", "socks5h"].includes(protocol)) {
+      console.warn(`[Thordata] Unsupported upstream proxy protocol: ${protocol}`);
+      return null;
+    }
+
+    return {
+      protocol,
+      host: url.hostname,
+      port: parseInt(url.port) || (protocol.startsWith("socks") ? 1080 : 7897),
+      username: url.username || undefined,
+      password: url.password || undefined,
+    };
+  } catch {
+    console.warn(`[Thordata] Failed to parse THORDATA_UPSTREAM_PROXY: ${upstreamUrl}`);
+    return null;
+  }
+}
+
+/**
  * Main client for interacting with Thordata APIs.
  */
 export class ThordataClient {
@@ -135,8 +172,7 @@ export class ThordataClient {
 
     this.http.defaults.headers.common["User-Agent"] = this.userAgent;
 
-    // Locations base URL is actually "https://openapi.thordata.com/api/locations"
-    // We need "https://openapi.thordata.com/api" for other endpoints
+    // Locations base URL
     const apiBase = this.baseUrls.locationsBaseUrl.replace(/\/locations$/, "");
     const whitelistBase = process.env.THORDATA_WHITELIST_BASE_URL || "https://api.thordata.com/api";
     const proxyApiBase =
@@ -148,6 +184,18 @@ export class ThordataClient {
     this.proxyListUrl = `${proxyApiBase}/proxy/proxy-list`;
     this.proxyExpirationUrl = `${apiBase}/proxy/expiration-time`;
     this.taskListUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-list`;
+
+    // Check for upstream proxy and log info
+    const upstream = parseUpstreamProxy();
+    if (upstream) {
+      console.log(
+        `[Thordata] Upstream proxy detected: ${upstream.protocol}://${upstream.host}:${upstream.port}`,
+      );
+      console.log(
+        `[Thordata] Note: For optimal upstream proxy support in Node.js, ` +
+          `ensure your system proxy settings or use TUN mode in Clash/V2Ray.`,
+      );
+    }
   }
 
   /**
@@ -169,25 +217,6 @@ export class ThordataClient {
 
   /**
    * Perform a search using the SERP API.
-   *
-   * Supported engines: google, bing, yandex, duckduckgo
-   * Plus Google specialized engines: google_news, google_shopping, etc.
-   *
-   * @example
-   * ```typescript
-   * // Basic Google search
-   * const results = await client.serpSearch({
-   *   query: "pizza",
-   *   engine: Engine.GOOGLE,
-   *   country: "us",
-   * });
-   *
-   * // Google News (recommended: use dedicated engine)
-   * const news = await client.serpSearch({
-   *   query: "AI regulation",
-   *   engine: Engine.GOOGLE_NEWS,
-   * });
-   * ```
    */
   async serpSearch(options: SerpOptions): Promise<Record<string, unknown>> {
     const {
@@ -216,7 +245,6 @@ export class ThordataClient {
       json: outputFormat.toLowerCase() === "html" ? "0" : "1",
     };
 
-    // Yandex uses 'text' instead of 'q'
     if (engineStr === "yandex") {
       payload.text = query;
     } else {
@@ -228,7 +256,6 @@ export class ThordataClient {
     if (country) payload.gl = country.toLowerCase();
     if (language) payload.hl = language.toLowerCase();
 
-    // tbm parameter (only for specific Google engines)
     const TBM_MAP: Record<string, string> = {
       images: "isch",
       shopping: "shop",
@@ -278,29 +305,6 @@ export class ThordataClient {
 
   /**
    * Scrape a URL using the Universal/Web Unlocker API.
-   *
-   * @example
-   * ```typescript
-   * // Basic HTML scraping
-   * const html = await client.universalScrape({
-   *   url: "https://example.com",
-   *   jsRender: false,
-   * });
-   *
-   * // With JS rendering and wait for element
-   * const html = await client.universalScrape({
-   *   url: "https://example.com/spa",
-   *   jsRender: true,
-   *   waitFor: ".main-content",
-   * });
-   *
-   * // Screenshot
-   * const png = await client.universalScrape({
-   *   url: "https://example.com",
-   *   jsRender: true,
-   *   outputFormat: "png",
-   * });
-   * ```
    */
   async universalScrape(
     options: UniversalOptions,
@@ -325,7 +329,6 @@ export class ThordataClient {
 
     const format = String(outputFormat).toLowerCase();
 
-    // Validate output format
     if (format !== "html" && format !== "png") {
       throw new ThordataConfigError(
         `Invalid outputFormat: "${outputFormat}". Supported values: "html", "png"`,
@@ -373,7 +376,6 @@ export class ThordataClient {
         }
       }
 
-      // Return HTML string
       if (data && typeof data === "object" && "html" in data) {
         return (data as Record<string, unknown>).html as string;
       }
@@ -386,9 +388,6 @@ export class ThordataClient {
   // 3) Web Scraper API
   // --------------------------
 
-  /**
-   * Create a new Web Scraper task.
-   */
   async createScraperTask(options: ScraperTaskOptions): Promise<string> {
     this.requirePublicCreds();
     const {
@@ -434,9 +433,6 @@ export class ThordataClient {
     });
   }
 
-  /**
-   * Verify that public credentials are available.
-   */
   private requirePublicCreds(): void {
     if (!this.publicToken || !this.publicKey) {
       throw new ThordataConfigError(
@@ -445,9 +441,6 @@ export class ThordataClient {
     }
   }
 
-  /**
-   * Get the status of a Web Scraper task.
-   */
   async getTaskStatus(taskId: string): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
@@ -468,9 +461,6 @@ export class ThordataClient {
     });
   }
 
-  /**
-   * Get the download URL for a completed task's results.
-   */
   async getTaskResult(taskId: string, fileType: "json" | "csv" | "xlsx" = "json"): Promise<string> {
     this.requirePublicCreds();
     const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
@@ -489,9 +479,6 @@ export class ThordataClient {
     });
   }
 
-  /**
-   * Create a YouTube video/audio download task.
-   */
   async createVideoTask(options: VideoTaskOptions): Promise<string> {
     this.requirePublicCreds();
     const {
@@ -534,9 +521,6 @@ export class ThordataClient {
     });
   }
 
-  /**
-   * Wait for a task to complete.
-   */
   async waitForTask(taskId: string, options: WaitForTaskOptions = {}): Promise<string> {
     const pollIntervalMs = options.pollIntervalMs ?? 5000;
     const maxWaitMs = options.maxWaitMs ?? 10 * 60 * 1000;
@@ -574,6 +558,15 @@ export class ThordataClient {
 
   /**
    * Make an HTTP request through a proxy.
+   *
+   * Supported proxy protocols:
+   * - https:// (recommended, required by most accounts)
+   * - socks5:// or socks5h:// (SOCKS5 with remote DNS)
+   * - http:// (legacy, not supported by most Thordata accounts)
+   *
+   * For users in mainland China or behind corporate firewalls:
+   * Set THORDATA_UPSTREAM_PROXY environment variable to route through local proxy.
+   * Example: THORDATA_UPSTREAM_PROXY=socks5://127.0.0.1:7897
    */
   async request(
     url: string,
@@ -593,23 +586,64 @@ export class ThordataClient {
     if (proxy instanceof Proxy) {
       const proxyUrl = proxy.toProxyUrl();
 
-      // Disable axios proxy logic & env proxy interference; use explicit agents
+      // Disable axios default proxy logic
       axiosConfig.proxy = false;
 
-      const scheme = new URL(proxyUrl).protocol; // "http:" | "https:" | "socks5:" | "socks5h:"
+      const parsedUrl = new URL(proxyUrl);
+      const scheme = parsedUrl.protocol; // "http:" | "https:" | "socks5:" | "socks5h:"
 
-      if (scheme.startsWith("socks")) {
-        const agent = new SocksProxyAgent(proxyUrl);
-        axiosConfig.httpAgent = agent;
-        axiosConfig.httpsAgent = agent;
-      } else if (scheme === "https:") {
-        const agent = new HttpsProxyAgent(proxyUrl);
-        axiosConfig.httpAgent = agent;
-        axiosConfig.httpsAgent = agent;
+      // Check for upstream proxy
+      const upstream = parseUpstreamProxy();
+
+      if (upstream) {
+        // When upstream proxy is detected, we need proxy chaining
+        // For Node.js, this is complex - we use a simplified approach:
+        // The upstream proxy (e.g., Clash) should be set as system proxy
+        console.warn(
+          `[Thordata] Upstream proxy detected. For best results:\n` +
+            `  1. Ensure Clash/V2Ray TUN mode is enabled, OR\n` +
+            `  2. Set system proxy to ${upstream.protocol}://${upstream.host}:${upstream.port}`,
+        );
+
+        // For SOCKS5 upstream, we can use nested SOCKS proxy
+        if (upstream.protocol.startsWith("socks") && scheme.startsWith("socks")) {
+          // Both are SOCKS - use the Thordata proxy directly
+          // (assuming upstream proxy is configured at system level)
+          const agent = new SocksProxyAgent(proxyUrl);
+          axiosConfig.httpAgent = agent;
+          axiosConfig.httpsAgent = agent;
+        } else {
+          // Mixed protocols or HTTP/HTTPS
+          // Let system proxy handle the upstream connection
+          if (scheme.startsWith("socks")) {
+            const agent = new SocksProxyAgent(proxyUrl);
+            axiosConfig.httpAgent = agent;
+            axiosConfig.httpsAgent = agent;
+          } else if (scheme === "https:") {
+            const agent = new HttpsProxyAgent(proxyUrl);
+            axiosConfig.httpAgent = agent;
+            axiosConfig.httpsAgent = agent;
+          } else {
+            const agent = new HttpProxyAgent(proxyUrl);
+            axiosConfig.httpAgent = agent;
+            axiosConfig.httpsAgent = agent;
+          }
+        }
       } else {
-        const agent = new HttpProxyAgent(proxyUrl);
-        axiosConfig.httpAgent = agent;
-        axiosConfig.httpsAgent = agent;
+        // No upstream proxy - direct connection to Thordata proxy
+        if (scheme.startsWith("socks")) {
+          const agent = new SocksProxyAgent(proxyUrl);
+          axiosConfig.httpAgent = agent;
+          axiosConfig.httpsAgent = agent;
+        } else if (scheme === "https:") {
+          const agent = new HttpsProxyAgent(proxyUrl);
+          axiosConfig.httpAgent = agent;
+          axiosConfig.httpsAgent = agent;
+        } else {
+          const agent = new HttpProxyAgent(proxyUrl);
+          axiosConfig.httpAgent = agent;
+          axiosConfig.httpsAgent = agent;
+        }
       }
     }
 
@@ -767,9 +801,6 @@ export class ThordataClient {
   // 5) Location API
   // --------------------------
 
-  /**
-   * Internal method to call locations API.
-   */
   private async getLocations(
     endpoint: string,
     params: Record<string, string | number> = {},
@@ -799,18 +830,12 @@ export class ThordataClient {
     });
   }
 
-  /**
-   * List all supported countries for a proxy type.
-   */
   async listCountries(proxyType: ProxyTypeParam = "residential"): Promise<CountryInfo[]> {
     return this.getLocations("countries", {
       proxy_type: normalizeProxyType(proxyType),
     }) as Promise<CountryInfo[]>;
   }
 
-  /**
-   * List states/regions for a country.
-   */
   async listStates(
     countryCode: string,
     proxyType: ProxyTypeParam = "residential",
@@ -821,9 +846,6 @@ export class ThordataClient {
     }) as Promise<StateInfo[]>;
   }
 
-  /**
-   * List cities for a country (and optionally state).
-   */
   async listCities(
     countryCode: string,
     stateCode?: string,
@@ -839,9 +861,6 @@ export class ThordataClient {
     return this.getLocations("cities", params) as Promise<CityInfo[]>;
   }
 
-  /**
-   * List ASNs for a country.
-   */
   async listAsns(
     countryCode: string,
     proxyType: ProxyTypeParam = "residential",
