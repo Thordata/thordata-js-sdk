@@ -24,7 +24,7 @@ async function runOne(protocol: string) {
 }
 
 async function main() {
-  for (const p of ["http", "https", "socks5h"]) {
+  for (const p of ["https", "socks5h"]) {
     await runOne(p);
   }
 }

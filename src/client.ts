@@ -41,8 +41,8 @@ import { Proxy } from "./proxy.js";
  * Configuration options for ThordataClient.
  */
 export interface ThordataClientConfig {
-  /** API token for SERP and Universal APIs */
-  scraperToken: string;
+  /** API token for SERP and Universal APIs (Optional) */
+  scraperToken?: string;
 
   /** Public token for Web Scraper API and Location API */
   publicToken?: string;
@@ -144,11 +144,7 @@ export class ThordataClient {
   public serp: SerpNamespace;
 
   constructor(config: ThordataClientConfig) {
-    if (!config.scraperToken) {
-      throw new ThordataConfigError("scraperToken is required");
-    }
-
-    this.scraperToken = config.scraperToken;
+    this.scraperToken = config.scraperToken ?? "";
     this.publicToken = config.publicToken;
     this.publicKey = config.publicKey;
     this.timeoutMs = config.timeoutMs ?? 30000;
@@ -223,6 +219,9 @@ export class ThordataClient {
    * Perform a search using the SERP API.
    */
   async serpSearch(options: SerpOptions): Promise<Record<string, unknown>> {
+    if (!this.scraperToken) {
+      throw new ThordataConfigError("scraperToken is required for SERP API");
+    }
     const {
       query,
       engine = Engine.GOOGLE,
@@ -313,6 +312,9 @@ export class ThordataClient {
   async universalScrape(
     options: UniversalOptions,
   ): Promise<string | Buffer | Record<string, unknown>> {
+    if (!this.scraperToken) {
+      throw new ThordataConfigError("scraperToken is required for Universal API");
+    }
     const {
       url,
       jsRender = false,
@@ -394,6 +396,9 @@ export class ThordataClient {
 
   async createScraperTask(options: ScraperTaskOptions): Promise<string> {
     this.requirePublicCreds();
+    if (!this.scraperToken) {
+      throw new ThordataConfigError("scraperToken is required for Task Builder");
+    }
     const {
       fileName,
       spiderId,
@@ -485,6 +490,9 @@ export class ThordataClient {
 
   async createVideoTask(options: VideoTaskOptions): Promise<string> {
     this.requirePublicCreds();
+    if (!this.scraperToken) {
+      throw new ThordataConfigError("scraperToken is required for Task Builder");
+    }
     const {
       fileName,
       spiderId,
@@ -613,14 +621,19 @@ export class ThordataClient {
         if (upstream.protocol.startsWith("socks") && scheme.startsWith("socks")) {
           // Both are SOCKS - use the Thordata proxy directly
           // (assuming upstream proxy is configured at system level)
-          const agent = new SocksProxyAgent(proxyUrl);
+          const agent = new SocksProxyAgent(proxyUrl, {
+            timeout: Number(axiosConfig.timeout) || 30000,
+          });
           axiosConfig.httpAgent = agent;
           axiosConfig.httpsAgent = agent;
         } else {
           // Mixed protocols or HTTP/HTTPS
           // Let system proxy handle the upstream connection
           if (scheme.startsWith("socks")) {
-            const agent = new SocksProxyAgent(proxyUrl);
+            const agent = new SocksProxyAgent(proxyUrl, {
+              timeout: Number(axiosConfig.timeout) || 30000,
+              keepAlive: true,
+            });
             axiosConfig.httpAgent = agent;
             axiosConfig.httpsAgent = agent;
           } else if (scheme === "https:") {
@@ -636,7 +649,10 @@ export class ThordataClient {
       } else {
         // No upstream proxy - direct connection to Thordata proxy
         if (scheme.startsWith("socks")) {
-          const agent = new SocksProxyAgent(proxyUrl);
+          const agent = new SocksProxyAgent(proxyUrl, {
+            timeout: Number(axiosConfig.timeout) || 30000,
+            keepAlive: true,
+          });
           axiosConfig.httpAgent = agent;
           axiosConfig.httpsAgent = agent;
         } else if (scheme === "https:") {
