@@ -2,14 +2,29 @@
 
 <div align="center">
 
-**Official Node.js/TypeScript Client for Thordata APIs**
+<img src="https://img.shields.io/badge/Thordata-AI%20Infrastructure-blue?style=for-the-badge" alt="Thordata Logo">
 
-_Proxy Network • SERP API • Web Unlocker • Web Scraper API_
+**The Official Node.js/TypeScript Client for Thordata APIs**
 
-[![npm version](https://img.shields.io/npm/v/thordata-js-sdk.svg)](https://www.npmjs.com/package/thordata-js-sdk)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+*Proxy Network • SERP API • Web Unlocker • Web Scraper API*
+
+[![npm version](https://img.shields.io/npm/v/thordata-js-sdk.svg?style=flat-square)](https://www.npmjs.com/package/thordata-js-sdk)
+[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Thordata/thordata-js-sdk/ci.yml?branch=main&style=flat-square)](https://github.com/Thordata/thordata-js-sdk/actions)
 
 </div>
+
+---
+
+## 📖 Introduction
+
+A fully typed TypeScript SDK for Thordata, optimized for Node.js environments. It provides seamless integration with Thordata's proxy network and scraping APIs.
+
+**Key Features:**
+*   **🔒 Type-Safe:** Written in TypeScript with complete definitions.
+*   **🌐 Modern:** Uses `axios` and standard `https-proxy-agent` for reliable connectivity.
+*   **⚡ Lazy Validation:** Zero-config initialization; only provide credentials for the features you use.
+*   **🛡️ Proxy Support:** Full support for HTTPS and SOCKS5h protocols with authentication.
 
 ---
 
@@ -17,148 +32,110 @@ _Proxy Network • SERP API • Web Unlocker • Web Scraper API_
 
 ```bash
 npm install thordata-js-sdk
+# or
+yarn add thordata-js-sdk
 ```
+
+---
 
 ## 🔐 Configuration
 
-Set environment variables:
+We recommend using `dotenv` to manage credentials.
 
 ```bash
-export THORDATA_SCRAPER_TOKEN="your_token"
-export THORDATA_PUBLIC_TOKEN="your_public_token"
-export THORDATA_PUBLIC_KEY="your_public_key"
+# .env file
+THORDATA_SCRAPER_TOKEN=your_token
+THORDATA_RESIDENTIAL_USERNAME=your_username
+THORDATA_RESIDENTIAL_PASSWORD=your_password
+THORDATA_PROXY_HOST=vpnXXXX.pr.thordata.net
 ```
+
+---
 
 ## 🚀 Quick Start
 
+### 1. SERP Search
+
 ```typescript
-import { Thordata } from "thordata-js-sdk";
+import { ThordataClient, Engine } from "thordata-js-sdk";
 
-// Initialize (reads from env vars)
-const client = new Thordata();
+const client = new ThordataClient({}); // Auto-loads from env
 
-async function main() {
-  // SERP Search
-  const results = await client.serpSearch({
-    query: "nodejs",
-    engine: "google",
+async function search() {
+  const result = await client.serpSearch({
+    query: "SpaceX launch",
+    engine: Engine.GOOGLE_NEWS,
     country: "us",
+    num: 5
   });
-  console.log(results.organic?.[0]?.title);
+  
+  console.log(result.news_results);
 }
 
-main();
+search();
 ```
 
-## 📚 Core Features
+### 2. Universal Scrape (Web Unlocker)
 
-### 🌐 Proxy Network
+```typescript
+async function scrape() {
+  const html = await client.universalScrape({
+    url: "https://www.g2.com/products/thordata",
+    jsRender: true,
+    waitFor: ".reviews-list",
+    country: "us"
+  });
+  
+  console.log("Page HTML length:", html.length);
+}
+```
 
-Build proxy URLs for `axios`, `fetch`, `puppeteer`, etc.
+### 3. Using the Proxy Network
 
 ```typescript
 import { Thordata } from "thordata-js-sdk";
 
-// Create proxy config
-const proxy = Thordata.Proxy.residentialFromEnv().country("jp").city("tokyo").sticky(30); // 30 min session
+// Create a targeted proxy config
+const proxy = Thordata.Proxy.residentialFromEnv()
+  .country("gb")
+  .city("london")
+  .sticky(10); // 10 minutes session
 
-// Get URL string
-console.log(proxy.toProxyUrl());
+const client = new Thordata();
 
-// Use with internal client
-const response = await client.request("https://httpbin.org/ip", { proxy });
+// Request uses the proxy automatically
+const response = await client.request("https://ipinfo.io/json", { proxy });
 console.log(response);
 ```
 
-### 🔍 SERP API
-
-```typescript
-import { Engine } from "thordata-js-sdk";
-
-const news = await client.serpSearch({
-  query: "SpaceX",
-  engine: Engine.GOOGLE_NEWS,
-  num: 20,
-  country: "us",
-  language: "en",
-});
-```
-
-### 🔓 Universal Scraping API (Web Unlocker)
-
-```typescript
-const html = await client.universalScrape({
-  url: "https://example.com/spa",
-  jsRender: true,
-  waitFor: ".loaded-content",
-  blockResources: "image,media",
-});
-```
-
-### 🕷️ Web Scraper API (Tasks)
-
-```typescript
-// 1. Create Task
-const taskId = await client.createScraperTask({
-  fileName: "task_1",
-  spiderId: "universal",
-  spiderName: "universal",
-  parameters: { url: "https://example.com" },
-});
-
-// 2. Wait
-const status = await client.waitForTask(taskId);
-
-// 3. Download
-if (status === "ready") {
-  const url = await client.getTaskResult(taskId);
-  console.log(url);
-}
-```
-
-### 📊 Account Management
-
-```typescript
-// Usage Stats
-const stats = await client.getUsageStatistics("2024-01-01", "2024-01-31");
-
-// Manage Whitelist
-await client.addWhitelistIp("1.2.3.4");
-
-// Check ISP Proxies
-const servers = await client.listProxyServers(1); // 1=ISP
-```
+---
 
 ## ⚙️ Advanced Usage
 
-### Error Handling
-
-The SDK throws typed errors for better control.
+### Task Management (Async)
 
 ```typescript
-import { ThordataRateLimitError, ThordataAuthError } from "thordata-js-sdk";
+// Create a scraping task
+const taskId = await client.createScraperTask({
+  fileName: "task_001",
+  spiderId: "universal",
+  spiderName: "universal",
+  parameters: { url: "https://example.com" }
+});
 
-try {
-  await client.serpSearch({ ... });
-} catch (e) {
-  if (e instanceof ThordataRateLimitError) {
-    console.log(`Rate limited! Retry after ${e.retryAfter}s`);
-  } else if (e instanceof ThordataAuthError) {
-    console.log("Check your tokens!");
-  }
+console.log(`Task ${taskId} created. Waiting...`);
+
+// Poll for completion
+const status = await client.waitForTask(taskId);
+
+if (status === "ready") {
+  const downloadUrl = await client.getTaskResult(taskId);
+  console.log("Result:", downloadUrl);
 }
 ```
 
-### Configuration Options
-
-```typescript
-const client = new ThordataClient({
-  scraperToken: "...",
-  timeoutMs: 60000,
-  maxRetries: 3, // Auto-retry on 429/5xx
-});
-```
+---
 
 ## 📄 License
 
-MIT License
+MIT License.
