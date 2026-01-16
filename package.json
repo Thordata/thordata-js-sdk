@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "thordata-js-sdk",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Official JavaScript/TypeScript SDK for Thordata (SERP, Universal, Web Scraper).",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -11,6 +11,7 @@ import {
   SerpOptions,
   UniversalOptions,
   ScraperTaskOptions,
+  RunTaskConfig,
   WaitForTaskOptions,
   ProxyTypeParam,
   CountryInfo,
@@ -564,6 +565,50 @@ export class ThordataClient {
     throw new ThordataTimeoutError(`Task ${taskId} did not complete within ${maxWaitMs} ms`);
   }
 
+  /**
+   * High-level wrapper to run a task and wait for the result.
+   *
+   * Lifecycle: Create -> Poll (Backoff) -> Get Download URL.
+   *
+   * @param options Task creation options
+   * @param config Polling configuration
+   * @returns Download URL of the result
+   */
+  async runTask(options: ScraperTaskOptions, config: RunTaskConfig = {}): Promise<string> {
+    const maxWait = config.maxWaitMs ?? 600_000;
+    const initialPoll = config.initialPollIntervalMs ?? 2_000;
+    const maxPoll = config.maxPollIntervalMs ?? 10_000;
+
+    // 1. Create Task
+    const taskId = await this.createScraperTask(options);
+    // console.log(`Task created: ${taskId}`); // Optional logging
+
+    // 2. Poll Status
+    const startTime = Date.now();
+    let currentPoll = initialPoll;
+
+    while (Date.now() - startTime < maxWait) {
+      const status = await this.getTaskStatus(taskId);
+      const statusLower = status.toLowerCase();
+
+      // Success
+      if (["ready", "success", "finished"].includes(statusLower)) {
+        return this.getTaskResult(taskId, "json");
+      }
+
+      // Failure
+      if (["failed", "error", "cancelled"].includes(statusLower)) {
+        throw new ThordataError(`Task ${taskId} failed with status: ${status}`);
+      }
+
+      // Wait and backoff
+      await sleep(currentPoll);
+      currentPoll = Math.min(currentPoll * 1.5, maxPoll);
+    }
+
+    throw new ThordataTimeoutError(`Task ${taskId} timed out after ${maxWait}ms`);
+  }
+
   // --------------------------
   // 4) Proxy Network
   // --------------------------
@@ -890,4 +935,8 @@ export class ThordataClient {
       country_code: countryCode.toUpperCase(),
     }) as Promise<AsnInfo[]>;
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

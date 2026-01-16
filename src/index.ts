@@ -44,6 +44,7 @@ export type {
   UniversalOptions,
   ScraperTaskOptions,
   WaitForTaskOptions,
+  RunTaskConfig,
   ProxyTypeParam,
   CountryInfo,
   StateInfo,

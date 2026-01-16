@@ -237,3 +237,15 @@ export interface ProxyServer {
   expiration_time?: string | number;
   region?: string;
 }
+
+/**
+ * Configuration for the high-level runTask method.
+ */
+export interface RunTaskConfig {
+  /** Maximum time to wait in milliseconds (default: 600000 = 10min) */
+  maxWaitMs?: number;
+  /** Initial polling interval in milliseconds (default: 2000) */
+  initialPollIntervalMs?: number;
+  /** Maximum polling interval in milliseconds (default: 10000) */
+  maxPollIntervalMs?: number;
+}
