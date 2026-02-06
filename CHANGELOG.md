@@ -2,6 +2,62 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-02-02
+
+### Added
+
+- **Browser API** (P1):
+  - New `thordata.browser.getConnectionUrl()` for remote browser connections.
+  - Support for Playwright/Puppeteer integration via WebSocket.
+  - Environment variable support: `THORDATA_BROWSER_USERNAME`, `THORDATA_BROWSER_PASSWORD`.
+
+- **Enhanced SERP Engines**:
+  - Added `client.serp.google.jobs(...)` for Google Jobs search.
+  - Added `client.serp.google.shopping(...)` for Google Shopping with optional product ID.
+  - Added `client.serp.google.patents(...)` for Google Patents search.
+  - Added `client.serp.google.trends(...)` for Google Trends search.
+
+- **Extended Public API**:
+  - `thordata.publicApi.trafficBalance()` - Get traffic balance.
+  - `thordata.publicApi.walletBalance()` - Get wallet balance.
+  - `thordata.publicApi.whitelist.deleteIp(...)` - Remove IP from whitelist.
+  - `thordata.publicApi.whitelist.list()` - List all whitelisted IPs.
+  - `thordata.publicApi.proxyUsers.update(...)` - Update proxy user.
+  - `thordata.publicApi.proxyUsers.delete(...)` - Delete proxy user.
+  - `thordata.publicApi.proxyUsers.usage(...)` - Get user usage statistics.
+  - `thordata.publicApi.proxyUsers.usageHour(...)` - Get hourly usage statistics.
+
+- **Enhanced Proxy Network** (P1):
+  - Added HTTP method wrappers: `thordata.proxy.get()`, `post()`, `put()`, `delete()`, `patch()`, `head()`, `options()`.
+  - Full support for request headers, query params, request body, and response type configuration.
+  - **Note**: SOCKS5h proxy is recommended; TLS-in-TLS support is handled via standard agents with upstream proxy support via `THORDATA_UPSTREAM_PROXY` env var.
+
+### Changed
+
+- **Proxy Namespace**: `thordata.proxy.request()` now uses the new `proxyRequest` method internally for consistent handling.
+- **Type Exports**: Added `BrowserNamespace` and `ProxyRequestConfig` to public exports.
+
+## [2.0.0] - 2026-01-30
+
+### Changed (Breaking)
+
+- **Package Name**: Renamed npm package from `thordata-js-sdk` to `@thordata/js-sdk`.
+- **Main Entry**: Introduced a new high-level `Thordata` wrapper that composes an internal `ThordataClient` instead of extending it.
+  - Old usage such as `new Thordata().serpSearch(...)` should be migrated to either:
+    - `new Thordata().client.serpSearch(...)`, or
+    - `new ThordataClient(...).serpSearch(...)`.
+
+### Added
+
+- **Namespaced APIs** for more productized usage:
+  - `thordata.unlocker.scrape(...)` for Web Unlocker / Universal API.
+  - `thordata.scraperTasks.create / wait / result / run / list(...)` for Web Scraper Tasks.
+  - `thordata.publicApi.usageStatistics / whitelist.addIp / proxyUsers.list/create / proxy.listServers/expiration`.
+  - `thordata.proxy.request(url, { proxy })` for high-level proxy HTTP requests.
+- **SERP Engines Namespace**:
+  - `client.serp.google.search/news/maps/flights(...)`
+  - `client.serp.bing.search/news(...)`
+
 ## [1.1.0] - 2026-01-06
 
 ### Added

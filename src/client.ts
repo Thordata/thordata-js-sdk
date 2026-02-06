@@ -1,6 +1,11 @@
 // src/client.ts
 
 import { SerpNamespace } from "./serp_engines.js";
+import { UnlockerNamespace } from "./namespaces/unlocker.js";
+import { ScraperTasksNamespace } from "./namespaces/tasks.js";
+import { PublicNamespace } from "./namespaces/public.js";
+import { ProxyNamespace } from "./namespaces/proxy.js";
+import { BrowserNamespace } from "./namespaces/browser.js";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { HttpProxyAgent } from "http-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -143,6 +148,11 @@ export class ThordataClient {
   private taskListUrl: string;
 
   public serp: SerpNamespace;
+  public unlocker: UnlockerNamespace;
+  public scraperTasks: ScraperTasksNamespace;
+  public publicApi: PublicNamespace;
+  public proxy: ProxyNamespace;
+  public browser: BrowserNamespace;
 
   constructor(config: ThordataClientConfig) {
     this.scraperToken = config.scraperToken ?? "";
@@ -197,6 +207,36 @@ export class ThordataClient {
       );
     }
     this.serp = new SerpNamespace(this);
+    this.unlocker = new UnlockerNamespace(this);
+    this.scraperTasks = new ScraperTasksNamespace(this);
+    this.publicApi = new PublicNamespace(this);
+    this.proxy = new ProxyNamespace(this);
+    this.browser = new BrowserNamespace(this);
+  }
+
+  // --------------------------
+  // Browser Connection
+  // --------------------------
+
+  getBrowserConnectionUrl(username?: string, password?: string): string {
+    // Use browser credentials from parameters or environment
+    const user = username || process.env.THORDATA_BROWSER_USERNAME;
+    const pwd = password || process.env.THORDATA_BROWSER_PASSWORD;
+
+    if (!user || !pwd) {
+      throw new ThordataConfigError(
+        "Browser credentials missing. Set THORDATA_BROWSER_USERNAME/PASSWORD or pass arguments.",
+      );
+    }
+
+    const prefix = "td-customer-";
+    const finalUser = user.startsWith(prefix) ? user : `${prefix}${user}`;
+
+    // URL-encode credentials
+    const safeUser = encodeURIComponent(finalUser);
+    const safePass = encodeURIComponent(pwd);
+
+    return `wss://${safeUser}:${safePass}@ws-browser.thordata.com`;
   }
 
   /**
@@ -629,16 +669,46 @@ export class ThordataClient {
     url: string,
     config: { proxy?: Proxy; timeout?: number; [key: string]: unknown } = {},
   ): Promise<unknown> {
+    return this.proxyRequest("GET", url, config);
+  }
+
+  /**
+   * Make an HTTP request through a proxy with specified method.
+   *
+   * This is the core proxy request method that supports all HTTP verbs.
+   */
+  async proxyRequest(
+    method: string,
+    url: string,
+    config: {
+      proxy?: Proxy;
+      timeout?: number;
+      headers?: Record<string, string>;
+      params?: Record<string, string | number | boolean>;
+      data?: unknown;
+      responseType?: "json" | "text" | "arraybuffer";
+      [key: string]: unknown;
+    } = {},
+  ): Promise<unknown> {
     if (!url) {
-      throw new ThordataConfigError("url is required for request");
+      throw new ThordataConfigError("url is required for proxy request");
     }
 
-    const { proxy, timeout, ...rest } = config;
+    const { proxy, timeout, headers, params, data, responseType, ...rest } = config;
 
     const axiosConfig: Record<string, unknown> = {
       ...rest,
+      method: method.toUpperCase(),
       timeout: timeout ?? this.timeoutMs,
+      headers: headers ?? {},
+      params: params ?? {},
+      responseType: responseType ?? "json",
     };
+
+    // Add data for methods that support it
+    if (data !== undefined && !["GET", "HEAD", "DELETE"].includes(method.toUpperCase())) {
+      axiosConfig.data = data;
+    }
 
     if (proxy instanceof Proxy) {
       const proxyUrl = proxy.toProxyUrl();
@@ -713,7 +783,7 @@ export class ThordataClient {
     }
 
     return this.execute(async () => {
-      const res = await this.http.get(url, axiosConfig);
+      const res = await this.http.request(axiosConfig);
       return res.data;
     });
   }
@@ -749,6 +819,40 @@ export class ThordataClient {
       const data = safeParseJson(res.data) as any;
       if (data?.code !== 200) raiseForCode("Usage stats failed", data, res.status);
       return (data.data ?? data) as UsageStatistics;
+    });
+  }
+
+  // --- Traffic Balance & Wallet ---
+
+  async getTrafficBalance(): Promise<number> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+    };
+    const apiBase = this.baseUrls.locationsBaseUrl.replace("/locations", "");
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${apiBase}/account/traffic-balance`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get traffic balance failed", data, res.status);
+      return Number(data.data?.traffic_balance ?? 0);
+    });
+  }
+
+  async getWalletBalance(): Promise<number> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+    };
+    const apiBase = this.baseUrls.locationsBaseUrl.replace("/locations", "");
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${apiBase}/account/wallet-balance`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get wallet balance failed", data, res.status);
+      return Number(data.data?.balance ?? 0);
     });
   }
 
@@ -797,6 +901,113 @@ export class ThordataClient {
     });
   }
 
+  async updateProxyUser(
+    username: string,
+    pass: string,
+    trafficLimit?: number,
+    status?: boolean,
+    proxyType: ProxyTypeParam = "residential",
+    newUsername?: string,
+  ): Promise<any> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+
+    // Defaults
+    const limitVal = trafficLimit !== undefined ? String(trafficLimit) : "0";
+    const statusVal = status === undefined || status ? "true" : "false";
+    const targetUsername = newUsername || username;
+
+    // Mapping to API specific field names (new_...)
+    const payload = {
+      proxy_type: String(normalizeProxyType(proxyType)),
+      username,
+      new_username: targetUsername,
+      new_password: pass,
+      new_traffic_limit: limitVal,
+      new_status: statusVal,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.proxyUsersUrl}/update-user`, toFormBody(payload), {
+        headers,
+      });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Update proxy user failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  async deleteProxyUser(username: string, proxyType: ProxyTypeParam = "residential"): Promise<any> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+    const payload = {
+      proxy_type: String(normalizeProxyType(proxyType)),
+      username,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.proxyUsersUrl}/delete-user`, toFormBody(payload), {
+        headers,
+      });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Delete proxy user failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  async getProxyUserUsage(
+    username: string,
+    startDate: string,
+    endDate: string,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<Array<Record<string, unknown>>> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: String(normalizeProxyType(proxyType)),
+      username,
+      from_date: startDate,
+      to_date: endDate,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${this.proxyUsersUrl}/usage-statistics`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get user usage failed", data, res.status);
+      return data.data ?? [];
+    });
+  }
+
+  async getProxyUserUsageHour(
+    username: string,
+    fromDate: string,
+    toDate: string,
+    proxyType: ProxyTypeParam = "residential",
+  ): Promise<Array<Record<string, unknown>>> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: String(normalizeProxyType(proxyType)),
+      username,
+      from_date: fromDate,
+      to_date: toDate,
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${this.proxyUsersUrl}/usage-statistics-hour`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Get hourly usage failed", data, res.status);
+      // API returns { "data": { "data": [...] } } structure
+      const innerData = data.data;
+      if (typeof innerData === "object" && innerData !== null && Array.isArray(innerData.data)) {
+        return innerData.data;
+      }
+      return [];
+    });
+  }
+
   // --- Whitelist IP ---
 
   async addWhitelistIp(
@@ -819,6 +1030,52 @@ export class ThordataClient {
       const data = safeParseJson(res.data) as any;
       if (data?.code !== 200) raiseForCode("Add whitelist IP failed", data, res.status);
       return data.data ?? {};
+    });
+  }
+
+  async deleteWhitelistIp(ip: string, proxyType: ProxyTypeParam = "residential"): Promise<any> {
+    this.requirePublicCreds();
+    const headers = buildPublicHeaders(this.publicToken!, this.publicKey!);
+    const payload = {
+      ip,
+      proxy_type: String(normalizeProxyType(proxyType)),
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.post(`${this.whitelistUrl}/delete-ip`, toFormBody(payload), {
+        headers,
+      });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("Delete whitelist IP failed", data, res.status);
+      return data.data ?? {};
+    });
+  }
+
+  async listWhitelistIps(proxyType: ProxyTypeParam = "residential"): Promise<string[]> {
+    this.requirePublicCreds();
+    const params = {
+      token: this.publicToken!,
+      key: this.publicKey!,
+      proxy_type: String(normalizeProxyType(proxyType)),
+    };
+
+    return this.execute(async () => {
+      const res = await this.http.get(`${this.whitelistUrl}/ip-list`, { params });
+      const data = safeParseJson(res.data) as any;
+      if (data?.code !== 200) raiseForCode("List whitelist IPs failed", data, res.status);
+
+      const items = data.data ?? [];
+      const result: string[] = [];
+      for (const item of items) {
+        if (typeof item === "string") {
+          result.push(item);
+        } else if (typeof item === "object" && item !== null && "ip" in item) {
+          result.push(String(item.ip));
+        } else {
+          result.push(String(item));
+        }
+      }
+      return result;
     });
   }
 

@@ -14,14 +14,14 @@ async function main() {
     return;
   }
 
-  const client = new Thordata();
+  const thordata = new Thordata();
   const testUrl = "http://httpbin.org/ip";
 
   console.log("Residential Proxy Demo\n");
 
   // Basic usage
   const proxy1 = Thordata.Proxy.residentialFromEnv().country("us");
-  const r1 = (await client.request(testUrl, { proxy: proxy1 })) as HttpBinResponse;
+  const r1 = (await thordata.proxy.request(testUrl, { proxy: proxy1 })) as HttpBinResponse;
   console.log("US Residential IP:", r1.origin);
 
   // With sticky session
@@ -30,7 +30,7 @@ async function main() {
     .city("tokyo")
     .session("my_session")
     .sticky(30);
-  const r2 = (await client.request(testUrl, { proxy: proxy2 })) as HttpBinResponse;
+  const r2 = (await thordata.proxy.request(testUrl, { proxy: proxy2 })) as HttpBinResponse;
   console.log("Tokyo Sticky IP  :", r2.origin);
 }
 

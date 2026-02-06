@@ -1,6 +1,6 @@
 // examples/verify_run_task.ts
 import "dotenv/config";
-import { ThordataClient } from "../src/index.js";
+import { Thordata } from "../src/index.js";
 
 async function main() {
   const scraperToken = process.env.THORDATA_SCRAPER_TOKEN;
@@ -26,16 +26,12 @@ async function main() {
     console.warn("⚠️ Invalid JSON params, using empty object");
   }
 
-  const client = new ThordataClient({
-    scraperToken,
-    publicToken,
-    publicKey,
-  });
+  const thordata = new Thordata({ scraperToken, publicToken, publicKey });
 
   console.log(`\n--- Testing Node.js runTask [${spiderName}] ---`);
 
   try {
-    const url = await client.runTask(
+    const url = await thordata.scraperTasks.run(
       {
         fileName: `node_test_${Date.now()}`,
         spiderId,

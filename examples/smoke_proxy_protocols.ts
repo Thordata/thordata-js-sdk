@@ -12,14 +12,14 @@ async function runOne(protocol: string) {
   process.env.THORDATA_PROXY_PROTOCOL = protocol;
   process.env.THORDATA_RESIDENTIAL_PROXY_PROTOCOL = protocol;
 
-  const client = new Thordata();
+  const thordata = new Thordata();
   const proxy = Thordata.Proxy.residentialFromEnv().country("us");
 
   const proxyUrl = proxy.toProxyUrl();
   console.log("====", protocol, "====");
   printProxyEndpoint(proxyUrl);
 
-  const out = await client.request("https://ipinfo.thordata.com", { proxy });
+  const out = await thordata.proxy.request("https://ipinfo.thordata.com", { proxy });
   console.log(out);
 }
 

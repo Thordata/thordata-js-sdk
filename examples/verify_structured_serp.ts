@@ -1,6 +1,6 @@
 // examples/verify_structured_serp.ts
 import "dotenv/config";
-import { ThordataClient } from "../src/index.js";
+import { Thordata } from "../src/index.js";
 
 async function main() {
   const token = process.env.THORDATA_SCRAPER_TOKEN;
@@ -10,12 +10,12 @@ async function main() {
   }
 
   // Init client
-  const client = new ThordataClient({ scraperToken: token });
+  const thordata = new Thordata({ scraperToken: token });
 
   console.log("--- 1. Testing Structured Google Maps (JS) ---");
   try {
-    // New Syntax: client.serp.google.maps(...)
-    const res = await client.serp.google.maps("coffee", "@40.745,-74.008,14z");
+    // Structured SERP helper: thordata.serp.google.maps(...)
+    const res = await thordata.serp.google.maps("coffee", "@40.745,-74.008,14z");
 
     // We expect an error if account is expired, but the structure is valid if we get here (or get a specific API error)
     console.log(
@@ -29,8 +29,8 @@ async function main() {
 
   console.log("\n--- 2. Testing Structured Google Flights (JS) ---");
   try {
-    // New Syntax: client.serp.google.flights(...)
-    await client.serp.google.flights({
+    // Structured SERP helper: thordata.serp.google.flights(...)
+    await thordata.serp.google.flights({
       departureId: "JFK",
       arrivalId: "LHR",
       outboundDate: "2025-12-25",

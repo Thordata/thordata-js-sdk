@@ -14,13 +14,13 @@ async function main() {
     return;
   }
 
-  const client = new Thordata();
+  const thordata = new Thordata();
   const testUrl = "http://httpbin.org/ip";
 
   console.log("Mobile Proxy Demo\n");
 
   const proxy = Thordata.Proxy.mobileFromEnv().country("gb");
-  const result = (await client.request(testUrl, { proxy })) as HttpBinResponse;
+  const result = (await thordata.proxy.request(testUrl, { proxy })) as HttpBinResponse;
   console.log("UK Mobile IP:", result.origin);
 }
 

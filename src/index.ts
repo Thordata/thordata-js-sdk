@@ -1,11 +1,17 @@
 // src/index.ts
 
-// Core client
+// New productized SDK
+export { Thordata } from "./thordata.js";
+export type { ThordataConfig } from "./thordata.js";
+
+// Low-level client (kept for advanced users)
 export { ThordataClient } from "./client.js";
 export type { ThordataClientConfig } from "./client.js";
 
-// Convenience wrapper
-export { Thordata } from "./thordata.js";
+// Namespaces
+export { BrowserNamespace } from "./namespaces/browser.js";
+export { ProxyNamespace } from "./namespaces/proxy.js";
+export type { ProxyRequestConfig } from "./namespaces/proxy.js";
 
 // Proxy utilities
 export { Proxy } from "./proxy.js";

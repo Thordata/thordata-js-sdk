@@ -10,51 +10,51 @@ async function main() {
     return;
   }
 
-  const client = new Thordata();
+  const thordata = new Thordata();
 
   console.log("Location API Demo\n");
 
   // List countries (now using string parameter)
   console.log("1. Listing countries...");
-  const countries = await client.listCountries("residential");
+  const countries = await thordata.client.listCountries("residential");
   console.log(`   Found ${countries.length} countries`);
   console.log(
     `   First 5: ${countries
       .slice(0, 5)
-      .map((c) => c.country_code)
+      .map((c: any) => c.country_code)
       .join(", ")}`,
   );
 
   // List states for US
   console.log("\n2. Listing US states...");
-  const states = await client.listStates("US", "residential");
+  const states = await thordata.client.listStates("US", "residential");
   console.log(`   Found ${states.length} states`);
   console.log(
     `   First 5: ${states
       .slice(0, 5)
-      .map((s) => s.state_name)
+      .map((s: any) => s.state_name)
       .join(", ")}`,
   );
 
   // List cities for California
   console.log("\n3. Listing California cities...");
-  const cities = await client.listCities("US", "california", "residential");
+  const cities = await thordata.client.listCities("US", "california", "residential");
   console.log(`   Found ${cities.length} cities`);
   console.log(
     `   First 5: ${cities
       .slice(0, 5)
-      .map((c) => c.city_name)
+      .map((c: any) => c.city_name)
       .join(", ")}`,
   );
 
   // List ASNs for US
   console.log("\n4. Listing US ASNs...");
-  const asns = await client.listAsns("US", "residential");
+  const asns = await thordata.client.listAsns("US", "residential");
   console.log(`   Found ${asns.length} ASNs`);
   console.log(
     `   First 3: ${asns
       .slice(0, 3)
-      .map((a) => `${a.asn_code}: ${a.asn_name}`)
+      .map((a: any) => `${a.asn_code}: ${a.asn_name}`)
       .join(", ")}`,
   );
 

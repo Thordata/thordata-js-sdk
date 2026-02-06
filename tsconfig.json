@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
     "strict": true,
     "skipLibCheck": true,
     "declaration": true,
@@ -11,7 +12,10 @@
     "rootDir": ".",
     "noImplicitAny": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "paths": {
+      "@thordata/js-sdk": ["./src"]
+    }
   },
   "include": ["src/**/*.ts", "examples/**/*.ts", "tests/**/*.ts"]
 }

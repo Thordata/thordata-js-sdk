@@ -32,6 +32,30 @@ export class GoogleEngine extends EngineBase {
   }
 
   /**
+   * Google Jobs
+   */
+  async jobs(query: string, options: Omit<SerpOptions, "query" | "engine"> = {}) {
+    return this.client.serpSearch({ query, engine: "google_jobs", ...options });
+  }
+
+  /**
+   * Google Shopping
+   * @param productId Optional product ID for product-specific search
+   */
+  async shopping(
+    query: string,
+    productId?: string,
+    options: Omit<SerpOptions, "query" | "engine"> = {},
+  ) {
+    const extra: Record<string, unknown> = {};
+    if (productId) {
+      extra.product_id = productId;
+      return this.client.serpSearch({ query, engine: "google_product", ...extra, ...options });
+    }
+    return this.client.serpSearch({ query, engine: "google_shopping", ...extra, ...options });
+  }
+
+  /**
    * Google Maps
    * @param coordinates Latitude,Longitude,Zoom (e.g. "@40.745,-74.008,14z")
    */
@@ -73,6 +97,20 @@ export class GoogleEngine extends EngineBase {
       ...extra,
       ...options,
     });
+  }
+
+  /**
+   * Google Patents
+   */
+  async patents(query: string, options: Omit<SerpOptions, "query" | "engine"> = {}) {
+    return this.client.serpSearch({ query, engine: "google_patents", ...options });
+  }
+
+  /**
+   * Google Trends
+   */
+  async trends(query: string, options: Omit<SerpOptions, "query" | "engine"> = {}) {
+    return this.client.serpSearch({ query, engine: "google_trends", ...options });
   }
 }
 

@@ -1,7 +1,7 @@
 // examples/basic_scraper_task.ts
 
 import "dotenv/config";
-import { ThordataClient } from "../src/index.js";
+import { Thordata } from "../src/index.js";
 
 async function main() {
   const scraperToken = process.env.THORDATA_SCRAPER_TOKEN;
@@ -49,14 +49,14 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new ThordataClient({
+  const thordata = new Thordata({
     scraperToken,
     publicToken,
     publicKey,
   });
 
   console.log("🕷️  Creating Web Scraper task (live example)...");
-  const taskId = await client.createScraperTask({
+  const taskId = await thordata.scraperTasks.create({
     // Recommended by docs: let the server substitute the actual task id.
     fileName,
     spiderId,
@@ -67,7 +67,7 @@ async function main() {
   console.log("Task created:", taskId);
 
   console.log("⏱️  Waiting for task completion...");
-  const status = await client.waitForTask(taskId, {
+  const status = await thordata.scraperTasks.wait(taskId, {
     pollIntervalMs: 5000,
     maxWaitMs: 120_000,
   });
@@ -75,7 +75,7 @@ async function main() {
   console.log("Final status:", status);
 
   if (status.toLowerCase() === "ready" || status.toLowerCase() === "success") {
-    const downloadUrl = await client.getTaskResult(taskId, "json");
+    const downloadUrl = await thordata.scraperTasks.result(taskId, "json");
     console.log("Download URL:", downloadUrl);
   }
 }

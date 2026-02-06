@@ -1,7 +1,7 @@
 // examples/verify_new_features.ts
 
 import "dotenv/config";
-import { ThordataClient } from "../src/index.js";
+import { Thordata } from "../src/index.js";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -16,11 +16,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new ThordataClient({
-    scraperToken,
-    publicToken,
-    publicKey,
-  });
+  const thordata = new Thordata({ scraperToken, publicToken, publicKey });
 
   console.log("========================================");
   console.log("Thordata SDK - New Features Verification");
@@ -30,7 +26,7 @@ async function main() {
     video_task: async () => {
       console.log("\n--- Testing: Video Task Creation ---");
       try {
-        const taskId = await client.createVideoTask({
+        const taskId = await thordata.client.createVideoTask({
           fileName: "test_{{VideoID}}",
           spiderId: "youtube_video_by-url",
           spiderName: "youtube.com",
@@ -52,7 +48,7 @@ async function main() {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
         const fmt = (d: Date) => d.toISOString().split("T")[0];
 
-        const stats = await client.getUsageStatistics(fmt(weekAgo), fmt(now));
+        const stats = await thordata.publicApi.usageStatistics(fmt(weekAgo), fmt(now));
         console.log(`✅ Stats Retrieved:`);
         console.log(`   Balance: ${(stats.traffic_balance / 1024 ** 3).toFixed(2)} GB`);
         return true;
@@ -65,7 +61,7 @@ async function main() {
     proxy_users: async () => {
       console.log("\n--- Testing: Proxy Users ---");
       try {
-        const users = await client.listProxyUsers("residential");
+        const users = await thordata.publicApi.proxyUsers.list("residential");
         console.log(`✅ Users Retrieved: ${users.user_count}`);
         if (users.list.length > 0) {
           console.log(`   User 1: ${users.list[0].username}`);
@@ -80,7 +76,7 @@ async function main() {
     proxy_servers: async () => {
       console.log("\n--- Testing: Proxy Servers (ISP) ---");
       try {
-        const servers = await client.listProxyServers(1); // 1 = ISP
+        const servers = await thordata.publicApi.proxy.listServers(1); // 1 = ISP
         console.log(`✅ ISP Servers: ${servers.length}`);
         if (servers.length > 0) {
           console.log(`   Server 1: ${servers[0].ip}:${servers[0].port}`);

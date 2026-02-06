@@ -18,13 +18,13 @@ async function main() {
     return;
   }
 
-  const client = new Thordata();
+  const thordata = new Thordata();
   const testUrl = "http://httpbin.org/ip";
 
   console.log("Static ISP Proxy Demo\n");
 
   const proxy = Thordata.Proxy.ispFromEnv();
-  const result = (await client.request(testUrl, { proxy })) as HttpBinResponse;
+  const result = (await thordata.proxy.request(testUrl, { proxy })) as HttpBinResponse;
   console.log("Static ISP IP:", result.origin);
   console.log("Expected IP  :", process.env.THORDATA_ISP_HOST);
 }

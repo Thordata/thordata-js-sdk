@@ -1,7 +1,7 @@
 // examples/serp_google_news.ts
 
 import "dotenv/config";
-import { ThordataClient, Engine } from "../src/index.js";
+import { Thordata, Engine } from "../src/index.js";
 
 async function main() {
   const token = process.env.THORDATA_SCRAPER_TOKEN;
@@ -10,7 +10,7 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new ThordataClient({
+  const thordata = new Thordata({
     scraperToken: token,
     maxRetries: 3,
   });
@@ -18,7 +18,7 @@ async function main() {
   // 1. Basic News Search
   console.log("\n📰 1. Basic Google News Search: 'AI regulation'");
   try {
-    const results = await client.serpSearch({
+    const results = await thordata.client.serpSearch({
       query: "AI regulation",
       engine: Engine.GOOGLE_NEWS,
       country: "us",
@@ -34,7 +34,7 @@ async function main() {
   // 2. Advanced News Filters
   console.log("\n📰 2. Advanced Filters (Sort by Date)");
   try {
-    const results = await client.serpSearch({
+    const results = await thordata.client.serpSearch({
       query: "Artificial Intelligence",
       engine: Engine.GOOGLE_NEWS,
       country: "us",
