@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.0] - 2026-02-02
+## [0.3.0] - 2026-02-02
 
 ### Added
 
@@ -37,7 +37,7 @@ All notable changes to this project will be documented in this file.
 - **Proxy Namespace**: `thordata.proxy.request()` now uses the new `proxyRequest` method internally for consistent handling.
 - **Type Exports**: Added `BrowserNamespace` and `ProxyRequestConfig` to public exports.
 
-## [2.1.1] - 2026-02-24
+## [0.3.1] - 2026-02-24
 
 ### Fixed
 
@@ -52,7 +52,7 @@ All notable changes to this project will be documented in this file.
 - **CI workflows**: removed submodule checkout since the repository no longer uses git submodules.
 - **Repo cleanup**: removed internal verification scripts, redundant examples, and legacy debug artifacts to keep the repo minimal.
 
-## [2.0.0] - 2026-01-30
+## [0.2.0] - 2026-01-30
 
 ### Changed (Breaking)
 
@@ -73,7 +73,7 @@ All notable changes to this project will be documented in this file.
   - `client.serp.google.search/news/maps/flights(...)`
   - `client.serp.bing.search/news(...)`
 
-## [1.1.0] - 2026-01-06
+## [0.1.1] - 2026-01-06
 
 ### Added
 - **Proxy Expiration**: Added `getProxyExpiration` method to check proxy validity.
@@ -85,7 +85,7 @@ All notable changes to this project will be documented in this file.
 - **Dependencies**: Moved `http-proxy-agent` and `https-proxy-agent` to `dependencies` to ensure proxies work out-of-the-box.
 - **Linting**: Fixed unused variables and tightened TypeScript checks.
 
-## [1.0.1] - 2026-01-05
+## [0.1.0] - 2026-01-05
 
 ### Added
 
