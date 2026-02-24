@@ -71,7 +71,7 @@ describe("Proxy Integration Tests", () => {
 
       for (const protocol of protocols) {
         console.log(`\n--- Testing protocol: ${protocol} ---`);
-        const target = protocol.startsWith("socks") ? TARGET_HTTP : TARGET_HTTPS
+        const target = protocol.startsWith("socks") ? TARGET_HTTP : TARGET_HTTPS;
 
         // Set env vars for each protocol so Proxy.fromEnv() picks them up
         process.env.THORDATA_PROXY_PROTOCOL = protocol;

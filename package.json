@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@thordata/js-sdk",
-  "version": "0.3.1",
+  "version": "1.4.0",
   "description": "Official Node.js/TypeScript SDK for Thordata (SERP, Web Unlocker, Web Scraper Tasks, Public API).",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
