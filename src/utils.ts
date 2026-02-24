@@ -179,7 +179,13 @@ export function handleAxiosError(e: unknown): never {
 
     // No response received (network error)
     if (!ae.response) {
-      throw new ThordataNetworkError(`Network error: ${ae.message}`, ae);
+      const msg = String(ae.message || "");
+      const agentName = String((ae.config as any)?.httpsAgent?.constructor?.name || "");
+      const socksHint =
+        agentName === "SocksProxyAgent" && msg.toLowerCase().includes("socket closed")
+          ? " (Hint: SOCKS proxy may not be enabled for your account/endpoint. Try HTTPS proxy protocol or verify the correct proxy port/host.)"
+          : "";
+      throw new ThordataNetworkError(`Network error: ${msg}${socksHint}`, ae);
     }
 
     const status = ae.response.status;

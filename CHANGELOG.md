@@ -37,6 +37,21 @@ All notable changes to this project will be documented in this file.
 - **Proxy Namespace**: `thordata.proxy.request()` now uses the new `proxyRequest` method internally for consistent handling.
 - **Type Exports**: Added `BrowserNamespace` and `ProxyRequestConfig` to public exports.
 
+## [2.1.1] - 2026-02-24
+
+### Fixed
+
+- **Proxy requests**: fixed a bug where proxy HTTP requests could fail with `Invalid URL` in Node.js (missing axios `url` field).
+- **Configuration**: `Thordata` can now be constructed without `THORDATA_SCRAPER_TOKEN` (Public API / Proxy / Browser usage is now truly lazy-validated per feature).
+- **Package entrypoints**: fixed npm export paths to match build outputs (`dist/src/*`).
+- **Networking errors**: improved error message for common SOCKS failures (`Socket closed`) with actionable hints.
+
+### Changed
+
+- **Logging**: upstream proxy hints are now only printed when `debug: true` is passed to the client/wrapper config.
+- **CI workflows**: removed submodule checkout since the repository no longer uses git submodules.
+- **Repo cleanup**: removed internal verification scripts, redundant examples, and legacy debug artifacts to keep the repo minimal.
+
 ## [2.0.0] - 2026-01-30
 
 ### Changed (Breaking)

@@ -15,59 +15,60 @@ export class ProxyNamespace {
   constructor(private client: ThordataClient) {}
 
   /**
-   * 通过代理发起 HTTP 请求。
+   * Perform an HTTP request through the Thordata proxy network.
    *
-   * - 推荐协议：https、socks5h
-   * - Node.js 不保证 TLS-in-TLS 的所有高级用法；如需复杂代理链，建议结合成熟 agent/本地 TUN。
+   * - Recommended protocols: https, socks5h
+   * - Node.js does not guarantee support for every advanced TLS-in-TLS pattern;
+   *   for very complex proxy chains, prefer a dedicated proxy agent or system‑level TUN.
    */
   request(url: string, config: ProxyRequestConfig = {}): Promise<unknown> {
     return this.client.request(url, config);
   }
 
   /**
-   * 通过代理发起 GET 请求。
+   * Perform a GET request through the proxy.
    */
   get(url: string, config: Omit<ProxyRequestConfig, "data"> = {}): Promise<unknown> {
     return this.client.proxyRequest("GET", url, config as ProxyRequestConfig);
   }
 
   /**
-   * 通过代理发起 POST 请求。
+   * Perform a POST request through the proxy.
    */
   post(url: string, config: ProxyRequestConfig = {}): Promise<unknown> {
     return this.client.proxyRequest("POST", url, config);
   }
 
   /**
-   * 通过代理发起 PUT 请求。
+   * Perform a PUT request through the proxy.
    */
   put(url: string, config: ProxyRequestConfig = {}): Promise<unknown> {
     return this.client.proxyRequest("PUT", url, config);
   }
 
   /**
-   * 通过代理发起 DELETE 请求。
+   * Perform a DELETE request through the proxy.
    */
   delete(url: string, config: Omit<ProxyRequestConfig, "data"> = {}): Promise<unknown> {
     return this.client.proxyRequest("DELETE", url, config as ProxyRequestConfig);
   }
 
   /**
-   * 通过代理发起 PATCH 请求。
+   * Perform a PATCH request through the proxy.
    */
   patch(url: string, config: ProxyRequestConfig = {}): Promise<unknown> {
     return this.client.proxyRequest("PATCH", url, config);
   }
 
   /**
-   * 通过代理发起 HEAD 请求。
+   * Perform a HEAD request through the proxy.
    */
   head(url: string, config: Omit<ProxyRequestConfig, "data"> = {}): Promise<unknown> {
     return this.client.proxyRequest("HEAD", url, config as ProxyRequestConfig);
   }
 
   /**
-   * 通过代理发起 OPTIONS 请求。
+   * Perform an OPTIONS request through the proxy.
    */
   options(url: string, config: Omit<ProxyRequestConfig, "data"> = {}): Promise<unknown> {
     return this.client.proxyRequest("OPTIONS", url, config as ProxyRequestConfig);

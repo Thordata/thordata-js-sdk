@@ -1,14 +1,14 @@
 {
   "type": "module",
   "name": "@thordata/js-sdk",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "description": "Official Node.js/TypeScript SDK for Thordata (SERP, Web Unlocker, Web Scraper Tasks, Public API).",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
     }
   },
   "files": [
@@ -27,7 +27,6 @@
     "format:fix": "prettier --write .",
     "prepack": "npm run build",
     "prepublishOnly": "npm run format:check && npm run lint && npm test",
-    "example:verify": "npm run build && node dist/examples/verify_new_features.js",
     "example:serp": "tsx examples/serp_basic.ts",
     "example:universal": "tsx examples/universal_basic.ts",
     "example:task": "tsx examples/basic_scraper_task.ts",

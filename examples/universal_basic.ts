@@ -16,8 +16,8 @@ async function main() {
 
   const out = await thordata.unlocker.scrape({
     url: "https://httpbin.org/html",
-    output_format: "html",
-    js_render: false,
+    outputFormat: "html",
+    jsRender: false,
   });
 
   const html = typeof out === "string" ? out : JSON.stringify(out, null, 2);

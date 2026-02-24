@@ -70,6 +70,14 @@ export interface ThordataClientConfig {
 
   /** Whether to verify SSL certificates (default: true). */
   verifySsl?: boolean;
+
+  /**
+   * Enable SDK debug logs (default: false).
+   *
+   * When enabled, the SDK prints helpful notes for upstream proxy usage and other
+   * environment-sensitive networking behavior.
+   */
+  debug?: boolean;
 }
 
 /**
@@ -102,7 +110,6 @@ function parseUpstreamProxy(): {
     const protocol = url.protocol.replace(":", "");
 
     if (!["http", "https", "socks5", "socks5h"].includes(protocol)) {
-      console.warn(`[Thordata] Unsupported upstream proxy protocol: ${protocol}`);
       return null;
     }
 
@@ -114,7 +121,6 @@ function parseUpstreamProxy(): {
       password: url.password || undefined,
     };
   } catch {
-    console.warn(`[Thordata] Failed to parse THORDATA_UPSTREAM_PROXY: ${upstreamUrl}`);
     return null;
   }
 }
@@ -132,6 +138,7 @@ export class ThordataClient {
   private http: AxiosInstance;
   private baseUrls: ThordataBaseUrls;
   private userAgent: string;
+  private debug: boolean;
 
   private serpUrl: string;
   private universalUrl: string;
@@ -160,6 +167,7 @@ export class ThordataClient {
     this.publicKey = config.publicKey;
     this.timeoutMs = config.timeoutMs ?? 30000;
     this.maxRetries = config.maxRetries ?? 0;
+    this.debug = config.debug ?? false;
 
     const verifySsl = config.verifySsl ?? true;
 
@@ -195,9 +203,9 @@ export class ThordataClient {
     this.proxyExpirationUrl = `${apiBase}/proxy/expiration-time`;
     this.taskListUrl = `${this.baseUrls.webScraperApiBaseUrl}/tasks-list`;
 
-    // Check for upstream proxy and log info
+    // Check for upstream proxy (optional)
     const upstream = parseUpstreamProxy();
-    if (upstream) {
+    if (upstream && this.debug) {
       console.log(
         `[Thordata] Upstream proxy detected: ${upstream.protocol}://${upstream.host}:${upstream.port}`,
       );
@@ -698,6 +706,7 @@ export class ThordataClient {
 
     const axiosConfig: Record<string, unknown> = {
       ...rest,
+      url,
       method: method.toUpperCase(),
       timeout: timeout ?? this.timeoutMs,
       headers: headers ?? {},
@@ -726,11 +735,13 @@ export class ThordataClient {
         // When upstream proxy is detected, we need proxy chaining
         // For Node.js, this is complex - we use a simplified approach:
         // The upstream proxy (e.g., Clash) should be set as system proxy
-        console.warn(
-          `[Thordata] Upstream proxy detected. For best results:\n` +
-            `  1. Ensure Clash/V2Ray TUN mode is enabled, OR\n` +
-            `  2. Set system proxy to ${upstream.protocol}://${upstream.host}:${upstream.port}`,
-        );
+        if (this.debug) {
+          console.warn(
+            `[Thordata] Upstream proxy detected. For best results:\n` +
+              `  1. Ensure Clash/V2Ray TUN mode is enabled, OR\n` +
+              `  2. Set system proxy to ${upstream.protocol}://${upstream.host}:${upstream.port}`,
+          );
+        }
 
         // For SOCKS5 upstream, we can use nested SOCKS proxy
         if (upstream.protocol.startsWith("socks") && scheme.startsWith("socks")) {
@@ -738,6 +749,7 @@ export class ThordataClient {
           // (assuming upstream proxy is configured at system level)
           const agent = new SocksProxyAgent(proxyUrl, {
             timeout: Number(axiosConfig.timeout) || 30000,
+            keepAlive: true,
           });
           axiosConfig.httpAgent = agent;
           axiosConfig.httpsAgent = agent;

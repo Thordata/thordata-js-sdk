@@ -36,38 +36,28 @@ export class Thordata {
 
   private static resolveConfig(tokenOrConfig?: string | ThordataConfig): ThordataClientConfig {
     if (typeof tokenOrConfig === "string") {
+      const token = tokenOrConfig.trim();
+      if (!token) {
+        throw new ThordataConfigError("Thordata token not provided.");
+      }
       return {
-        scraperToken: tokenOrConfig,
+        scraperToken: token,
         publicToken: process.env.THORDATA_PUBLIC_TOKEN,
         publicKey: process.env.THORDATA_PUBLIC_KEY,
       };
     }
 
     if (tokenOrConfig && typeof tokenOrConfig === "object") {
-      const token = tokenOrConfig.scraperToken || process.env.THORDATA_SCRAPER_TOKEN;
-      if (!token) {
-        throw new ThordataConfigError(
-          "Thordata token not provided. Pass it in config or set THORDATA_SCRAPER_TOKEN environment variable.",
-        );
-      }
-
       return {
         ...tokenOrConfig,
-        scraperToken: token,
+        scraperToken: tokenOrConfig.scraperToken || process.env.THORDATA_SCRAPER_TOKEN,
         publicToken: tokenOrConfig.publicToken || process.env.THORDATA_PUBLIC_TOKEN,
         publicKey: tokenOrConfig.publicKey || process.env.THORDATA_PUBLIC_KEY,
       } as ThordataClientConfig;
     }
 
-    const token = process.env.THORDATA_SCRAPER_TOKEN;
-    if (!token) {
-      throw new ThordataConfigError(
-        "Thordata token not provided. Pass it to constructor or set THORDATA_SCRAPER_TOKEN environment variable.",
-      );
-    }
-
     return {
-      scraperToken: token,
+      scraperToken: process.env.THORDATA_SCRAPER_TOKEN,
       publicToken: process.env.THORDATA_PUBLIC_TOKEN,
       publicKey: process.env.THORDATA_PUBLIC_KEY,
     };

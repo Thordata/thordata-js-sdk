@@ -56,9 +56,4 @@ describe("examples e2e (offline)", () => {
     const { stdout } = await runExample("dist/examples/basic_scraper_task.js");
     expect(stdout.length).toBeGreaterThanOrEqual(0);
   });
-
-  it("serp_google_news", async () => {
-    const { stdout } = await runExample("dist/examples/serp_google_news.js");
-    expect(stdout.length).toBeGreaterThanOrEqual(0);
-  });
 });

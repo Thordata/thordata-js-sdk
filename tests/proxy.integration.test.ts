@@ -2,12 +2,14 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { Thordata } from "../src/thordata.js";
 import { config } from "dotenv";
 
-// 加载 .env 文件
+// Load `.env` so real credentials can be used for live proxy tests
 config();
 
 const RUN = process.env.THORDATA_INTEGRATION?.toLowerCase() === "true";
 const STRICT = process.env.THORDATA_INTEGRATION_STRICT?.toLowerCase() === "true";
-const TARGET = "https://ipinfo.thordata.com";
+const RUN_SOCKS = process.env.THORDATA_INTEGRATION_SOCKS?.toLowerCase() === "true";
+const TARGET_HTTPS = "https://ipinfo.thordata.com";
+const TARGET_HTTP = "http://httpbin.org/ip";
 
 function looksLikeInterference(error: unknown): boolean {
   const s = String(error).toLowerCase();
@@ -47,7 +49,7 @@ describe("Proxy Integration Tests", () => {
         throw new Error("Missing required env vars. Please create .env file with credentials.");
       }
 
-      const client = new Thordata({
+      const thordata = new Thordata({
         maxRetries: 3,
         timeoutMs: 60_000,
       });
@@ -57,9 +59,11 @@ describe("Proxy Integration Tests", () => {
 
       if (upstream) {
         console.log(`🔗 Upstream proxy detected: ${upstream}`);
-        protocols = ["https", "socks5h"];
+        protocols = ["https"];
+        if (RUN_SOCKS) protocols.push("socks5h");
       } else {
-        protocols = ["https", "socks5h"];
+        protocols = ["https"];
+        if (RUN_SOCKS) protocols.push("socks5h");
         if (process.env.THORDATA_INTEGRATION_HTTP === "true") {
           protocols.unshift("http");
         }
@@ -67,12 +71,13 @@ describe("Proxy Integration Tests", () => {
 
       for (const protocol of protocols) {
         console.log(`\n--- Testing protocol: ${protocol} ---`);
+        const target = protocol.startsWith("socks") ? TARGET_HTTP : TARGET_HTTPS
 
-        // 为每个协议设置环境变量
+        // Set env vars for each protocol so Proxy.fromEnv() picks them up
         process.env.THORDATA_PROXY_PROTOCOL = protocol;
         process.env.THORDATA_RESIDENTIAL_PROXY_PROTOCOL = protocol;
 
-        // 使用 fromEnv 方法，它会读取环境变量
+        // Use the fromEnv helper, which reads credentials from environment variables
         const proxy = Thordata.Proxy.residentialFromEnv().country("us");
 
         let lastError: unknown = null;
@@ -81,7 +86,7 @@ describe("Proxy Integration Tests", () => {
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
             console.log(`  Attempt ${attempt}/3...`);
-            const result = await client.request(TARGET, { proxy, timeout: 60000 });
+            const result = await thordata.proxy.request(target, { proxy, timeout: 60000 });
 
             expect(result).toBeTruthy();
             console.log(`  ✓ ${protocol} passed!`);

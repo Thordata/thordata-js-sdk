@@ -16,7 +16,6 @@ async function main() {
     query: "pizza",
     engine: "google",
     country: "us",
-    output_format: "json",
   });
 
   printJSON(out);
