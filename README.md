@@ -34,11 +34,18 @@ A fully typed TypeScript SDK for Thordata, optimized for Node.js environments. I
 
 ## 📦 Installation
 
+The package is currently under development and is not yet published to npm.
+
+For local development:
+
 ```bash
-npm install @thordata/js-sdk
-# or
-yarn add @thordata/js-sdk
+git clone https://github.com/Thordata/thordata-js-sdk.git
+cd thordata-js-sdk
+npm install
+npm run build
 ```
+
+Do not use `npm install @thordata/js-sdk` until the package is officially published to npm.
 
 ---
 
