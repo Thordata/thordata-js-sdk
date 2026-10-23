@@ -8,7 +8,6 @@
 
 *Proxy Network • SERP API • Web Unlocker • Web Scraper API*
 
-[![npm version](https://img.shields.io/npm/v/@thordata/js-sdk.svg?style=flat-square)](https://www.npmjs.com/package/@thordata/js-sdk)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Thordata/thordata-js-sdk/ci.yml?branch=main&style=flat-square)](https://github.com/Thordata/thordata-js-sdk/actions)
 
