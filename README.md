@@ -30,10 +30,18 @@ A fully typed TypeScript SDK for Thordata, optimized for Node.js environments. I
 *   **📊 Public API:** Account management, proxy users, whitelist, and usage statistics.
 
 ---
+## 🔑 Get API Access
+
+Create a Thordata account and get the API credentials used by the SDK:
+
+- [Create a Thordata account](https://www.thordata.com/?ls=github&lk=thordata)
+- [Read the official documentation](https://doc.thordata.com)
+
+The SDK supports Thordata SERP API, proxy, Web Unlocker, and Web Scraper services.
 
 ## 📦 Installation
 
-The package is currently under development and is not yet published to npm.
+> Status: The SDK is currently under active development and is not yet published to npm. Use the local installation below.
 
 For local development:
 
