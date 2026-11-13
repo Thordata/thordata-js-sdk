@@ -13,6 +13,10 @@
 
 </div>
 
+> **Maintenance notice:** This repository contains the established JavaScript/TypeScript SDK implementation.
+> For new JavaScript/Node.js projects, use the [next-generation Thordata JavaScript SDK](https://github.com/Thordata/thordata-javascript).
+> The package in this repository is not currently published to npm.
+
 ---
 
 ## 📖 Introduction
